@@ -6,6 +6,7 @@ dist/
 build/
 *.deb
 packaging/deb-root/
+packaging/apt-repo/
 .DS_Store
 *.log
 .venv/
@@ -13,4 +14,7 @@ packaging/deb-root/
 .vscode/
 *.swp
 *~
-# keep source masters; ignore editor junk only
+*.asc
+*.gpg
+!icons/**/*.png
+private*.key

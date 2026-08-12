@@ -2,9 +2,9 @@
 
 ## 1.0.0 — 2026-08-12
 
-### Foundational release
+### Foundational release — first real product cut
 
-First stable public cut of **GTDataworks Portlock**.
+Stable public **GTDataworks Portlock**.
 
 - Soft lock / hard lock / unlock state machine
 - Auto-lock on session/screen lock (write-safe soft-lock)
@@ -12,7 +12,8 @@ First stable public cut of **GTDataworks Portlock**.
 - Plug-in attempt logging + desktop notifications
 - Official neon matrix padlock icon (locked + unlocked + hicolor)
 - Tray widget (Ayatana AppIndicator) + CLI helpers
-- `install.sh` and shippable **`.deb`** package
+- Shippable **`.deb`** + **public apt repository** (GitHub Pages)
+- One-liner: `install-apt.sh` → `apt install gtdataworks-portlock`
 - Polkit: passwordless auto path, authenticated manual path
 
 Not affiliated with USBGuard.

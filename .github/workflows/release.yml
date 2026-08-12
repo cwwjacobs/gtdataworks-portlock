@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish_pages:
+        description: "Publish apt repo to GitHub Pages"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils gzip xz-utils gnupg
+
+      - name: Build .deb
+        run: |
+          chmod +x packaging/build-deb.sh packaging/build-apt-repo.sh
+          ./packaging/build-deb.sh
+
+      - name: Build apt repository
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+        run: |
+          ./packaging/build-apt-repo.sh
+          # User-facing installer at site root
+          cp packaging/install-apt.sh packaging/apt-repo/install-apt.sh
+          chmod 755 packaging/apt-repo/install-apt.sh
+
+      - name: Upload release assets (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/gtdataworks-portlock_*.deb
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+
+      - name: Configure Pages
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_pages || startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packaging/apt-repo
+
+      - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
+        id: deployment
+        uses: actions/deploy-pages@v4

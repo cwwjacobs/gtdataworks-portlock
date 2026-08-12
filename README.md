@@ -1,10 +1,31 @@
 # GTDataworks Portlock
 
-**Desktop USB mass-storage lock with Auto-lock, write-safe soft-lock, and plug-in attempt logging.**
+**Your workstation’s USB mass-storage policy — in the tray.**
 
-> Not affiliated with [USBGuard](https://usbguard.github.io/). Portlock is a small workstation tray tool; USBGuard is a full USB authorization framework. They solve related problems at different layers.
+Soft-lock on the lock screen (without killing in-flight writes). Hard-lock when you leave. Log every stick that shows up. Official matrix padlock, shippable `.deb`, and a public **apt repo**.
 
-![status](https://img.shields.io/badge/version-1.0.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+> First real product from GTDataworks. Not affiliated with [USBGuard](https://usbguard.github.io/) — complementary desktop UX for class-08 mass storage.
+
+![status](https://img.shields.io/badge/version-1.0.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey) ![release](https://img.shields.io/github/v/release/cwwjacobs/gtdataworks-portlock)
+
+---
+
+## Install (apt — product path)
+
+```bash
+curl -fsSL https://cwwjacobs.github.io/gtdataworks-portlock/install-apt.sh | sudo bash
+sudo apt update
+sudo apt install gtdataworks-portlock
+portlock
+```
+
+Upgrade anytime:
+
+```bash
+sudo apt update && sudo apt install --only-upgrade gtdataworks-portlock
+```
+
+Repo site: [cwwjacobs.github.io/gtdataworks-portlock](https://cwwjacobs.github.io/gtdataworks-portlock/) · details in [docs/APT.md](docs/APT.md)
 
 ---
 
@@ -56,14 +77,14 @@ Designed so locking the screen never kills an in-progress copy:
 
 ---
 
-## Quick install
+## Other install methods
 
-### `.deb` (recommended — v1 foundational package)
+### One-shot `.deb` (GitHub Release)
 
 ```bash
-# From GitHub Releases, or build locally with: make deb
+# https://github.com/cwwjacobs/gtdataworks-portlock/releases
 sudo apt install ./gtdataworks-portlock_1.0.0_all.deb
-portlock   # start tray
+portlock
 ```
 
 ### From source
@@ -74,14 +95,9 @@ cd gtdataworks-portlock
 ./install.sh
 ```
 
-Requires: Linux with udev, polkit/`pkexec`, Python 3 + Gtk 3 + Ayatana AppIndicator (Linux Mint / Ubuntu / Cinnamon friendly).
+Requires Linux with udev, polkit/`pkexec`, Python 3 + Gtk 3 + Ayatana AppIndicator (Mint / Ubuntu / Cinnamon friendly). The `.deb` pulls those deps for you.
 
-```bash
-# Debian/Ubuntu/Mint deps (pulled automatically by the .deb)
-sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 policykit-1 libnotify-bin
-```
-
-Fresh install defaults to **hard-locked** until you unlock once from the tray (password prompt). After that, Auto-lock soft-locks without a password.
+Fresh install defaults to **hard-locked** until you unlock once from the tray. After that, Auto-lock soft-locks without a password.
 
 ### CLI
 

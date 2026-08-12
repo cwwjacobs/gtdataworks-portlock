@@ -1,12 +1,13 @@
-VERSION := $(shell cat VERSION 2>/dev/null || echo 0.2.0)
+VERSION := $(shell cat VERSION 2>/dev/null || echo 1.0.0)
 PREFIX  ?= /usr/local
-.PHONY: help install uninstall deb check clean
+.PHONY: help install uninstall deb apt-repo check clean
 
 help:
 	@echo "GTDataworks Portlock $(VERSION)"
 	@echo "  make install    — system install (needs sudo)"
 	@echo "  make uninstall  — remove system bits"
 	@echo "  make deb        — build a .deb under dist/"
+	@echo "  make apt-repo   — build static apt repo (packaging/apt-repo)"
 	@echo "  make check      — syntax-check scripts"
 	@echo "  make clean      — remove build artifacts"
 
@@ -22,11 +23,19 @@ check:
 	bash -n sbin/portlock-attempt-logger
 	bash -n install.sh
 	bash -n uninstall.sh
+	bash -n packaging/build-deb.sh
+	bash -n packaging/build-apt-repo.sh
+	bash -n packaging/install-apt.sh
 	python3 -m py_compile app/portlock.py
 	@echo "check ok"
 
 deb:
 	./packaging/build-deb.sh
 
+apt-repo: deb
+	./packaging/build-apt-repo.sh
+	cp packaging/install-apt.sh packaging/apt-repo/install-apt.sh
+	chmod 755 packaging/apt-repo/install-apt.sh
+
 clean:
-	rm -rf dist packaging/deb-root __pycache__ app/__pycache__
+	rm -rf dist packaging/deb-root packaging/apt-repo __pycache__ app/__pycache__
