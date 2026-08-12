@@ -1,0 +1,3 @@
+# gtdataworks-portlock: block USB Mass Storage interfaces only (class 08).
+# HID and other classes stay authorized. Interface-scoped for composite devices.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTR{bInterfaceClass}=="08", ATTR{authorized}="0"

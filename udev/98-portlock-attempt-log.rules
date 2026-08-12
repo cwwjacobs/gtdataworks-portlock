@@ -1,0 +1,2 @@
+# gtdataworks-portlock: log every USB mass-storage interface attach (class 08).
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTR{bInterfaceClass}=="08", RUN+="/usr/local/sbin/portlock-attempt-logger"

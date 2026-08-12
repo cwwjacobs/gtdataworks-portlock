@@ -1,0 +1,13 @@
+#!/bin/bash
+# Restricted entrypoint for session auto-lock / auto-unlock (passwordless polkit).
+# Only auto-soft-lock and auto-unlock are allowed.
+set -euo pipefail
+case "${1:-}" in
+  auto-soft-lock|auto-unlock)
+    exec /usr/local/sbin/portlock-ctl "$@"
+    ;;
+  *)
+    echo "error: portlock-ctl-auto only allows auto-soft-lock | auto-unlock" >&2
+    exit 1
+    ;;
+esac

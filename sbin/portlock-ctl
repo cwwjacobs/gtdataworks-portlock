@@ -1,0 +1,268 @@
+#!/bin/bash
+# gtdataworks-portlock — privileged control (via pkexec).
+# States:
+#   unlocked     — new mass-storage interfaces are authorized (normal)
+#   soft-locked  — block rule on: NEW sticks blocked; already-authorized stay live
+#   hard-locked  — block rule on: ALL mass-storage deauthorized
+set -euo pipefail
+
+VERSION="0.2.0"
+RULE="/etc/udev/rules.d/99-portlock-block-ms.rules"
+RULE_DISABLED="/etc/udev/rules.d/99-portlock-block-ms.rules.disabled"
+# Legacy names from usb-storage-guard / early installs
+LEGACY_RULE="/etc/udev/rules.d/99-block-usb-mass-storage.rules"
+LEGACY_RULE_DISABLED="/etc/udev/rules.d/99-block-usb-mass-storage.rules.disabled"
+RULE_TEMPLATE="/usr/local/share/gtdataworks-portlock/99-portlock-block-ms.rules"
+STATE_DIR="/var/lib/gtdataworks-portlock"
+STATE_FILE="${STATE_DIR}/state"
+REASON_FILE="${STATE_DIR}/reason"
+ATTEMPT_LOG="/var/log/portlock-attempts.log"
+
+ensure_root() {
+  if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+    echo "error: must run as root (use pkexec)" >&2
+    exit 1
+  fi
+}
+
+migrate_legacy_rule() {
+  # Prefer new rule path; move legacy if present
+  if [[ -f "$LEGACY_RULE" && ! -f "$RULE" && ! -f "$RULE_DISABLED" ]]; then
+    mv "$LEGACY_RULE" "$RULE"
+  fi
+  if [[ -f "$LEGACY_RULE_DISABLED" && ! -f "$RULE" && ! -f "$RULE_DISABLED" ]]; then
+    mv "$LEGACY_RULE_DISABLED" "$RULE_DISABLED"
+  fi
+  # Drop duplicate legacy if both exist
+  rm -f "$LEGACY_RULE" "$LEGACY_RULE_DISABLED" 2>/dev/null || true
+}
+
+rule_body() {
+  cat <<'EOF'
+# gtdataworks-portlock: block USB Mass Storage interfaces only (class 08).
+# HID and other classes stay authorized. Interface-scoped for composite devices.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTR{bInterfaceClass}=="08", ATTR{authorized}="0"
+EOF
+}
+
+ensure_rule_file_exists() {
+  migrate_legacy_rule
+  if [[ ! -f "$RULE" && ! -f "$RULE_DISABLED" ]]; then
+    if [[ -f "$RULE_TEMPLATE" ]]; then
+      cp "$RULE_TEMPLATE" "$RULE_DISABLED"
+    else
+      rule_body >"$RULE_DISABLED"
+    fi
+  fi
+}
+
+enable_block_rule() {
+  ensure_rule_file_exists
+  if [[ -f "$RULE_DISABLED" && ! -f "$RULE" ]]; then
+    mv "$RULE_DISABLED" "$RULE"
+  elif [[ ! -f "$RULE" ]]; then
+    if [[ -f "$RULE_TEMPLATE" ]]; then
+      cp "$RULE_TEMPLATE" "$RULE"
+    else
+      rule_body >"$RULE"
+    fi
+  fi
+}
+
+disable_block_rule() {
+  ensure_rule_file_exists
+  if [[ -f "$RULE" ]]; then
+    mv "$RULE" "$RULE_DISABLED"
+  fi
+}
+
+reload_udev() {
+  udevadm control --reload-rules
+  udevadm trigger --subsystem-match=usb || true
+}
+
+# List currently authorized mass-storage interface sysfs dirs
+list_ms_ifaces() {
+  local auth iface_dir
+  shopt -s nullglob
+  for auth in /sys/bus/usb/devices/*:*.*/authorized; do
+    iface_dir=$(dirname "$auth")
+    if [[ -f "$iface_dir/bInterfaceClass" ]] && [[ "$(cat "$iface_dir/bInterfaceClass")" == "08" ]]; then
+      echo "$iface_dir"
+    fi
+  done
+}
+
+authorize_all_ms() {
+  local iface
+  while IFS= read -r iface; do
+    [[ -z "$iface" ]] && continue
+    echo 1 >"$iface/authorized" 2>/dev/null || true
+  done < <(list_ms_ifaces)
+}
+
+deauthorize_all_ms() {
+  local iface
+  while IFS= read -r iface; do
+    [[ -z "$iface" ]] && continue
+    echo 0 >"$iface/authorized" 2>/dev/null || true
+  done < <(list_ms_ifaces)
+}
+
+# Snapshot of authorized MS devices (for soft-lock preserve list / debugging)
+snapshot_active_ms() {
+  local iface vid pid serial product
+  mkdir -p "$STATE_DIR"
+  : >"${STATE_DIR}/preserved-at-lock.txt"
+  while IFS= read -r iface; do
+    [[ -z "$iface" ]] && continue
+    auth=$(cat "$iface/authorized" 2>/dev/null || echo 0)
+    [[ "$auth" != "1" ]] && continue
+    parent=$(dirname "$iface")
+    vid=$(tr -d '\n' <"$parent/idVendor" 2>/dev/null || echo "")
+    pid=$(tr -d '\n' <"$parent/idProduct" 2>/dev/null || echo "")
+    serial=$(tr -d '\n' <"$parent/serial" 2>/dev/null || echo "")
+    product=$(tr -d '\n' <"$parent/product" 2>/dev/null || echo "")
+    echo "iface=$(basename "$iface") vid=${vid} pid=${pid} serial=${serial} product=${product}" \
+      >>"${STATE_DIR}/preserved-at-lock.txt"
+  done < <(list_ms_ifaces)
+  chmod 644 "${STATE_DIR}/preserved-at-lock.txt" 2>/dev/null || true
+}
+
+write_state() {
+  local state="$1"
+  local reason="${2:-none}"
+  mkdir -p "$STATE_DIR"
+  echo "$state" >"$STATE_FILE"
+  echo "$reason" >"$REASON_FILE"
+  chmod 644 "$STATE_FILE" "$REASON_FILE"
+}
+
+# Infer state from disk if state file missing
+status() {
+  migrate_legacy_rule 2>/dev/null || true
+  if [[ -f "$STATE_FILE" ]]; then
+    local s
+    s=$(tr -d '\n' <"$STATE_FILE")
+    case "$s" in
+      unlocked|soft-locked|hard-locked) echo "$s"; return ;;
+      locked) echo "hard-locked"; return ;;  # legacy
+    esac
+  fi
+  if [[ -f "$RULE" ]] || [[ -f "$LEGACY_RULE" ]]; then
+    echo "hard-locked"
+  else
+    echo "unlocked"
+  fi
+}
+
+reason() {
+  if [[ -f "$REASON_FILE" ]]; then
+    tr -d '\n' <"$REASON_FILE"
+  else
+    echo "none"
+  fi
+}
+
+# Soft lock: new plugs blocked; do NOT touch already-authorized MS (safe for writes).
+soft_lock() {
+  local why="${1:-manual}"
+  enable_block_rule
+  reload_udev
+  snapshot_active_ms
+  # Intentionally no deauthorize_all_ms
+  write_state "soft-locked" "$why"
+  logger -t portlock "SOFT-LOCKED (reason=${why}) — new mass storage blocked; active sticks preserved"
+  echo "soft-locked"
+}
+
+# Hard lock: block new + deauthorize everything currently plugged.
+hard_lock() {
+  local why="${1:-manual}"
+  enable_block_rule
+  reload_udev
+  deauthorize_all_ms
+  snapshot_active_ms
+  write_state "hard-locked" "$why"
+  logger -t portlock "HARD-LOCKED (reason=${why}) — all mass storage deauthorized"
+  echo "hard-locked"
+}
+
+unlock() {
+  disable_block_rule
+  reload_udev
+  authorize_all_ms
+  write_state "unlocked" "none"
+  logger -t portlock "UNLOCKED — mass storage allowed"
+  echo "unlocked"
+}
+
+# Auto path helpers (called by tray with explicit reason)
+auto_soft_lock() { soft_lock "auto"; }
+auto_unlock() {
+  # Only clear soft-lock placed by auto mode; leave manual hard-lock alone
+  local s r
+  s=$(status)
+  r=$(reason)
+  if [[ "$s" == "hard-locked" && "$r" == "manual" ]]; then
+    echo "hard-locked"
+    echo "note: manual hard-lock kept through session unlock" >&2
+    return 0
+  fi
+  unlock
+}
+
+toggle() {
+  if [[ "$(status)" == "unlocked" ]]; then
+    hard_lock "manual"
+  else
+    unlock
+  fi
+}
+
+attempts_count() {
+  if [[ -f "$ATTEMPT_LOG" ]]; then
+    wc -l <"$ATTEMPT_LOG" | tr -d ' '
+  else
+    # fall back to user log path is unknown here; system only
+    echo 0
+  fi
+}
+
+json_status() {
+  printf '{"state":"%s","reason":"%s","version":"%s"}\n' "$(status)" "$(reason)" "$VERSION"
+}
+
+case "${1:-}" in
+  status) status ;;
+  reason) reason ;;
+  json-status) json_status ;;
+  version) echo "$VERSION" ;;
+  soft-lock) ensure_root; soft_lock "${2:-manual}" ;;
+  hard-lock) ensure_root; hard_lock "${2:-manual}" ;;
+  lock) ensure_root; hard_lock "${2:-manual}" ;;  # alias
+  unlock) ensure_root; unlock ;;
+  auto-soft-lock) ensure_root; auto_soft_lock ;;
+  auto-unlock) ensure_root; auto_unlock ;;
+  toggle) ensure_root; toggle ;;
+  authorize-all) ensure_root; authorize_all_ms; echo "ok" ;;
+  deauthorize-all) ensure_root; deauthorize_all_ms; echo "ok" ;;
+  attempts-count) attempts_count ;;
+  log-path) echo "$ATTEMPT_LOG" ;;
+  preserved) cat "${STATE_DIR}/preserved-at-lock.txt" 2>/dev/null || true ;;
+  *)
+    cat >&2 <<'EOF'
+usage: portlock-ctl <command>
+  status | reason | json-status | version
+  soft-lock [reason]   block NEW sticks; keep active ones (write-safe)
+  hard-lock [reason]   block ALL mass storage now
+  lock [reason]        alias for hard-lock
+  unlock
+  auto-soft-lock       soft-lock with reason=auto (session lock)
+  auto-unlock          unlock unless manual hard-lock is active
+  toggle | authorize-all | deauthorize-all
+  attempts-count | log-path | preserved
+EOF
+    exit 2
+    ;;
+esac

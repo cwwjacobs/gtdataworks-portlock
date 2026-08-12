@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>GTDataworks</vendor>
+  <vendor_url>https://github.com/gtdataworks/gtdataworks-portlock</vendor_url>
+
+  <action id="com.gtdataworks.portlock">
+    <description>Control GTDataworks Portlock USB mass storage policy</description>
+    <description xml:lang="en">Control GTDataworks Portlock USB mass storage policy</description>
+    <message>Authentication is required to change USB mass storage lock state</message>
+    <message xml:lang="en">Authentication is required to change USB mass storage lock state</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/sbin/portlock-ctl</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

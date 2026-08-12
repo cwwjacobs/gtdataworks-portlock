@@ -1,0 +1,129 @@
+#!/bin/bash
+# udev helper: log USB mass-storage attach events for gtdataworks-portlock.
+set -u
+
+LOG="/var/log/portlock-attempts.log"
+STATE_FILE="/var/lib/gtdataworks-portlock/state"
+RULE="/etc/udev/rules.d/99-portlock-block-ms.rules"
+LEGACY_RULE="/etc/udev/rules.d/99-block-usb-mass-storage.rules"
+LOCK_FILE="/run/portlock-attempt-logger.lock"
+CONFIG="/etc/gtdataworks-portlock/notify-user.conf"
+
+# Optional: NOTIFY_USER=alice  (written by install.sh)
+NOTIFY_USER=""
+if [[ -f "$CONFIG" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG" || true
+fi
+
+exec 9>"$LOCK_FILE"
+flock -n 9 || exit 0
+
+DEV_SYS=""
+if [[ -n "${DEVPATH:-}" && -d "/sys${DEVPATH}/.." ]]; then
+  DEV_SYS=$(readlink -f "/sys${DEVPATH}/..")
+fi
+
+read_attr() {
+  local path="$1"
+  if [[ -f "$path" ]]; then
+    tr -d '\n' <"$path"
+  else
+    echo ""
+  fi
+}
+
+VID=""; PID=""; PRODUCT=""; MANUF=""; SERIAL=""
+
+if [[ -n "$DEV_SYS" ]]; then
+  VID=$(read_attr "$DEV_SYS/idVendor")
+  PID=$(read_attr "$DEV_SYS/idProduct")
+  PRODUCT=$(read_attr "$DEV_SYS/product")
+  MANUF=$(read_attr "$DEV_SYS/manufacturer")
+  SERIAL=$(read_attr "$DEV_SYS/serial")
+fi
+
+VID=${VID:-${ID_VENDOR_ID:-????}}
+PID=${PID:-${ID_MODEL_ID:-????}}
+PRODUCT=${PRODUCT:-${ID_MODEL:-${ID_MODEL_FROM_DATABASE:-unknown}}}
+MANUF=${MANUF:-${ID_VENDOR:-${ID_VENDOR_FROM_DATABASE:-unknown}}}
+SERIAL=${SERIAL:-${ID_SERIAL_SHORT:-${ID_SERIAL:-unknown}}}
+[[ -z "$PRODUCT" ]] && PRODUCT="unknown"
+[[ -z "$MANUF" ]] && MANUF="unknown"
+[[ -z "$SERIAL" ]] && SERIAL="unknown"
+
+if [[ -f "$STATE_FILE" ]]; then
+  LOCK_STATE=$(tr -d '\n' <"$STATE_FILE")
+elif [[ -f "$RULE" || -f "$LEGACY_RULE" ]]; then
+  LOCK_STATE="hard-locked"
+else
+  LOCK_STATE="unlocked"
+fi
+
+TS=$(date -Iseconds)
+HOST=$(hostname 2>/dev/null || echo host)
+LINE="${TS} host=${HOST} state=${LOCK_STATE} vid=${VID} pid=${PID} manufacturer=\"${MANUF}\" product=\"${PRODUCT}\" serial=\"${SERIAL}\" devpath=\"${DEVPATH:-}\""
+
+mkdir -p "$(dirname "$LOG")"
+umask 022
+echo "$LINE" >>"$LOG"
+chmod 644 "$LOG" 2>/dev/null || true
+
+# Mirror into every logged-in GUI user's attempt log + notify flag
+mirror_to_users() {
+  local user home uid runtime bus
+  # Prefer configured user; also try active seat users
+  local users=()
+  if [[ -n "$NOTIFY_USER" ]]; then
+    users+=("$NOTIFY_USER")
+  fi
+  while IFS= read -r user; do
+    [[ -n "$user" ]] || continue
+    users+=("$user")
+  done < <(who | awk '{print $1}' | sort -u)
+
+  local seen="|"
+  for user in "${users[@]}"; do
+    [[ "$seen" == *"|$user|"* ]] && continue
+    seen+="${user}|"
+    home=$(getent passwd "$user" | cut -d: -f6)
+    [[ -n "$home" && -d "$home" ]] || continue
+    local dir="$home/.local/share/gtdataworks-portlock"
+    mkdir -p "$dir"
+    echo "$LINE" >>"$dir/attempts.log"
+    echo "$TS" >"$dir/notify.flag"
+    chown -R "$user:$user" "$dir" 2>/dev/null || true
+    chmod 755 "$dir" 2>/dev/null || true
+    chmod 644 "$dir/attempts.log" "$dir/notify.flag" 2>/dev/null || true
+
+    uid=$(id -u "$user" 2>/dev/null) || continue
+    runtime="/run/user/${uid}"
+    bus="unix:path=${runtime}/bus"
+    [[ -S "${runtime}/bus" ]] || continue
+
+    local title body
+    case "$LOCK_STATE" in
+      soft-locked|hard-locked|locked)
+        title="Portlock: USB storage blocked"
+        body="Blocked: ${MANUF} ${PRODUCT} (${VID}:${PID})"
+        ;;
+      *)
+        title="Portlock: USB storage detected"
+        body="Plugged in: ${MANUF} ${PRODUCT} (${VID}:${PID})"
+        ;;
+    esac
+
+    if command -v runuser >/dev/null 2>&1; then
+      runuser -u "$user" -- env \
+        DISPLAY="${DISPLAY:-:0}" \
+        DBUS_SESSION_BUS_ADDRESS="$bus" \
+        XDG_RUNTIME_DIR="$runtime" \
+        notify-send --app-name="Portlock" --icon=drive-removable-media \
+          --urgency=critical "$title" "$body" 2>/dev/null || true
+    fi
+  done
+}
+
+logger -t portlock-attempt "mass-storage ${LOCK_STATE}: ${MANUF} ${PRODUCT} (${VID}:${PID}) serial=${SERIAL}"
+mirror_to_users
+exit 0
