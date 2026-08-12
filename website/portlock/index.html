@@ -228,14 +228,13 @@
     }
 
     .install-panel { background: var(--ink-soft); border: 1px solid var(--line); padding: 22px; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-    .tab {
-      appearance: none; background: transparent; color: var(--muted);
-      border: 1px solid var(--line); padding: 7px 12px;
-      font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-      cursor: pointer;
+    .install-label {
+      margin: 0 0 8px;
+      color: var(--gold);
+      font-size: 11px; font-weight: 800;
+      letter-spacing: 0.16em; text-transform: uppercase;
     }
-    .tab[aria-selected="true"] { color: var(--ink); background: var(--gold); border-color: var(--gold); }
+    .install-block + .install-block { margin-top: 22px; }
     .cmd-wrap { position: relative; }
     .copy-btn {
       position: absolute; top: 10px; right: 10px;
@@ -352,24 +351,37 @@
         <div>
           <p class="kicker">Install</p>
           <h2>Add the repo. Then apt install.</h2>
-          <p class="section-lede">Same package whether you remember sudo or not. Goat mode only covers the repo installer — <code>apt</code> still wants sudo.</p>
+          <p class="section-lede">Add the apt source, then install the package. <code>apt</code> still needs sudo either way.</p>
         </div>
         <div class="install-panel">
-          <div class="tabs" role="tablist" aria-label="Installer elevation">
-            <button type="button" class="tab" role="tab" id="tab-sudo" aria-selected="true" aria-controls="cmd">With sudo</button>
-            <button type="button" class="tab" role="tab" id="tab-goat" aria-selected="false" aria-controls="cmd">Forgot sudo</button>
-          </div>
-          <div class="cmd-wrap">
-            <button type="button" class="copy-btn" id="copy">Copy</button>
-            <pre class="cmd" id="cmd"><span class="cmt"># add the Portlock apt repo, then install</span>
+          <div class="install-block">
+            <p class="install-label">With sudo</p>
+            <div class="cmd-wrap">
+              <button type="button" class="copy-btn" data-copy="curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | sudo bash
+sudo apt update
+sudo apt install gtdataworks-portlock
+portlock">Copy</button>
+              <pre class="cmd"><span class="cmt"># add the Portlock apt repo, then install</span>
 curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | sudo bash
 sudo apt update
 sudo apt install gtdataworks-portlock
 portlock</pre>
+            </div>
           </div>
-          <p class="goat" id="goat-note" hidden>
-            Goat mode: the installer notices you are not root and re-runs itself with sudo. You will get a password prompt, then the repo is added.
-          </p>
+          <div class="install-block">
+            <p class="install-label">Without</p>
+            <div class="cmd-wrap">
+              <button type="button" class="copy-btn" data-copy="curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | bash
+sudo apt update
+sudo apt install gtdataworks-portlock
+portlock">Copy</button>
+              <pre class="cmd"><span class="cmt"># installer elevates itself if you are not root</span>
+curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | bash
+sudo apt update
+sudo apt install gtdataworks-portlock
+portlock</pre>
+            </div>
+          </div>
           <p class="footnote">
             One-shot package:
             <a href="https://github.com/cwwjacobs/gtdataworks-portlock/releases/download/v1.0.0/gtdataworks-portlock_1.0.0_all.deb">gtdataworks-portlock_1.0.0_all.deb</a>
@@ -395,56 +407,21 @@ portlock</pre>
   </footer>
 
   <script>
-    (function () {
-      var sudo = `curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | sudo bash
-sudo apt update
-sudo apt install gtdataworks-portlock
-portlock`;
-      var goat = `curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | bash
-sudo apt update
-sudo apt install gtdataworks-portlock
-portlock`;
-      var sudoHtml = `<span class="cmt"># add the Portlock apt repo, then install</span>
-curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | sudo bash
-sudo apt update
-sudo apt install gtdataworks-portlock
-portlock`;
-      var goatHtml = `<span class="cmt"># no sudo on curl — installer elevates itself</span>
-curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | bash
-sudo apt update
-sudo apt install gtdataworks-portlock
-portlock`;
-
-      var cmd = document.getElementById("cmd");
-      var copyBtn = document.getElementById("copy");
-      var goatNote = document.getElementById("goat-note");
-      var tabSudo = document.getElementById("tab-sudo");
-      var tabGoat = document.getElementById("tab-goat");
-      var mode = "sudo";
-
-      function setMode(next) {
-        mode = next;
-        tabSudo.setAttribute("aria-selected", next === "sudo" ? "true" : "false");
-        tabGoat.setAttribute("aria-selected", next === "goat" ? "true" : "false");
-        cmd.innerHTML = next === "sudo" ? sudoHtml : goatHtml;
-        goatNote.hidden = next !== "goat";
-      }
-      tabSudo.addEventListener("click", function () { setMode("sudo"); });
-      tabGoat.addEventListener("click", function () { setMode("goat"); });
-      copyBtn.addEventListener("click", async function () {
+    document.querySelectorAll(".copy-btn").forEach(function (btn) {
+      btn.addEventListener("click", async function () {
         try {
-          await navigator.clipboard.writeText(mode === "sudo" ? sudo : goat);
-          copyBtn.classList.add("ok");
-          copyBtn.textContent = "Copied";
+          await navigator.clipboard.writeText(btn.getAttribute("data-copy") || "");
+          btn.classList.add("ok");
+          btn.textContent = "Copied";
           setTimeout(function () {
-            copyBtn.classList.remove("ok");
-            copyBtn.textContent = "Copy";
+            btn.classList.remove("ok");
+            btn.textContent = "Copy";
           }, 1400);
         } catch (e) {
-          copyBtn.textContent = "Select";
+          btn.textContent = "Select";
         }
       });
-    })();
+    });
   </script>
 </body>
 </html>
