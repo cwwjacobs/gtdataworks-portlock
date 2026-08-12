@@ -4,7 +4,7 @@
 
 > Not affiliated with [USBGuard](https://usbguard.github.io/). Portlock is a small workstation tray tool; USBGuard is a full USB authorization framework. They solve related problems at different layers.
 
-![status](https://img.shields.io/badge/version-0.2.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+![status](https://img.shields.io/badge/version-0.2.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey)
 
 ---
 

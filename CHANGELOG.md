@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-08-12
+
+- Official matrix padlock app icon (locked + unlocked tray states)
+- Freedesktop hicolor icon theme install for menu/launcher
+
 ## 0.2.0 — 2026-08-12
 
 - Rebranded to **GTDataworks Portlock** (`gtdataworks-portlock`)

@@ -13,3 +13,4 @@ packaging/deb-root/
 .vscode/
 *.swp
 *~
+# keep source masters; ignore editor junk only

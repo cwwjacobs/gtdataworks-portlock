@@ -34,7 +34,7 @@ from gi.repository import GLib, Gtk, Gio
 
 APP_ID = "gtdataworks-portlock"
 APP_NAME = "Portlock"
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "gtdataworks-portlock"
@@ -378,20 +378,23 @@ class PortlockApp:
     # --- icons / UI --------------------------------------------------------
 
     def _icon_path(self, state: str) -> str:
-        name = (
-            "portlock-unlocked.png"
-            if state == "unlocked"
-            else "portlock-locked.png"
-        )
-        path = ICON_DIR / name
-        if path.is_file():
-            return str(path)
-        # legacy names
-        alt = ICON_DIR / (
-            "usb-unlocked.png" if state == "unlocked" else "usb-locked.png"
-        )
-        if alt.is_file():
-            return str(alt)
+        # Prefer tray-sized matrix lock icons; fall back to app/master assets
+        if state == "unlocked":
+            candidates = (
+                "portlock-tray-unlocked.png",
+                "portlock-unlocked.png",
+                "portlock-app-unlocked.png",
+            )
+        else:
+            candidates = (
+                "portlock-tray-locked.png",
+                "portlock-locked.png",
+                "portlock-app.png",
+            )
+        for name in candidates:
+            path = ICON_DIR / name
+            if path.is_file():
+                return str(path)
         return "drive-removable-media" if state == "unlocked" else "security-high"
 
     def _notify_mtime(self) -> float:

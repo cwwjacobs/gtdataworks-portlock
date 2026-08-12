@@ -35,7 +35,11 @@ install -m 0644 "$ROOT/udev/99-portlock-block-ms.rules" \
   "$STAGE/etc/udev/rules.d/99-portlock-block-ms.rules.disabled"
 install -m 0644 "$ROOT/polkit/"*.policy "$STAGE/usr/share/polkit-1/actions/"
 install -m 0644 "$ROOT/icons/"*.png "$STAGE/usr/local/share/gtdataworks-portlock/icons/" 2>/dev/null || true
-install -m 0644 "$ROOT/icons/"*.svg "$STAGE/usr/local/share/gtdataworks-portlock/icons/" 2>/dev/null || true
+install -m 0644 "$ROOT/icons/"*.jpg "$STAGE/usr/local/share/gtdataworks-portlock/icons/" 2>/dev/null || true
+if [[ -d "$ROOT/icons/hicolor" ]]; then
+  mkdir -p "$STAGE/usr/share/icons/hicolor"
+  cp -a "$ROOT/icons/hicolor/." "$STAGE/usr/share/icons/hicolor/"
+fi
 install -m 0644 "$ROOT/README.md" "$STAGE/usr/share/doc/${PKG}/"
 install -m 0644 "$ROOT/LICENSE" "$STAGE/usr/share/doc/${PKG}/copyright"
 install -m 0644 "$ROOT/CHANGELOG.md" "$STAGE/usr/share/doc/${PKG}/changelog"

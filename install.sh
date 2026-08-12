@@ -69,7 +69,19 @@ install -m 0644 "$SRC/VERSION" /usr/local/share/gtdataworks-portlock/VERSION
 install -m 0644 "$SRC/udev/99-portlock-block-ms.rules" \
   /usr/local/share/gtdataworks-portlock/99-portlock-block-ms.rules
 install -m 0644 "$SRC/icons/"*.png /usr/local/share/gtdataworks-portlock/icons/ 2>/dev/null || true
-install -m 0644 "$SRC/icons/"*.svg /usr/local/share/gtdataworks-portlock/icons/ 2>/dev/null || true
+install -m 0644 "$SRC/icons/"*.jpg /usr/local/share/gtdataworks-portlock/icons/ 2>/dev/null || true
+# Freedesktop theme icons (menu / launcher)
+if [[ -d "$SRC/icons/hicolor" ]]; then
+  for dir in "$SRC/icons/hicolor"/*/apps; do
+    [[ -d "$dir" ]] || continue
+    size=$(basename "$(dirname "$dir")")
+    install -d "/usr/share/icons/hicolor/${size}/apps"
+    install -m 0644 "$dir/"*.png "/usr/share/icons/hicolor/${size}/apps/" 2>/dev/null || true
+  done
+  if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+  fi
+fi
 
 install -m 0644 "$SRC/udev/98-portlock-attempt-log.rules" \
   /etc/udev/rules.d/98-portlock-attempt-log.rules
@@ -158,7 +170,7 @@ Name=GTDataworks Portlock
 GenericName=USB Port Lock
 Comment=Lock USB mass storage, auto soft-lock on lock screen, log plug-in attempts
 Exec=/usr/local/bin/gtdataworks-portlock
-Icon=/usr/local/share/gtdataworks-portlock/icons/portlock-locked.png
+Icon=gtdataworks-portlock
 Terminal=false
 Categories=System;Security;
 StartupNotify=false
