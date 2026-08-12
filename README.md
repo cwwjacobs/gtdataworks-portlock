@@ -12,11 +12,17 @@ Soft-lock on the lock screen (without killing in-flight writes). Hard-lock when 
 
 ## Install (apt — product path)
 
+Product page: [gtdataworks.com/portlock](https://gtdataworks.com/portlock/)
+
 ```bash
-curl -fsSL https://cwwjacobs.github.io/gtdataworks-portlock/install-apt.sh | sudo bash
+# with sudo (recommended)
+curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | sudo bash
 sudo apt update
 sudo apt install gtdataworks-portlock
 portlock
+
+# forgot sudo? goat mode re-elevates the installer for you
+curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | bash
 ```
 
 Upgrade anytime:
