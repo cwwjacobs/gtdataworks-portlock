@@ -7,7 +7,10 @@ Portlock ships a **static apt repository** on GitHub Pages:
 ## For users
 
 ```bash
-curl -fsSL https://cwwjacobs.github.io/gtdataworks-portlock/install-apt.sh | sudo bash
+# product page: https://gtdataworks.com/portlock/
+curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | sudo bash
+# forgot sudo? the script goat-modes and re-runs elevated
+# curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | bash
 sudo apt update
 sudo apt install gtdataworks-portlock
 portlock
