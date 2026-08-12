@@ -1,18 +1,12 @@
-Upload these files to Namecheap / public_html so they live at:
+Upload to Namecheap public_html/portlock/ (https://gtdataworks.com/portlock/):
 
-  https://gtdataworks.com/portlock/
-  https://gtdataworks.com/portlock/index.html
-  https://gtdataworks.com/portlock/install-apt.sh
-  https://gtdataworks.com/portlock/icon.png
-  https://gtdataworks.com/portlock/icon-192.png
-  https://gtdataworks.com/portlock/favicon.png
+  index.html
+  install-apt.sh
+  icon.png
+  icon-192.png
+  favicon.png
 
-Suggested path on host:
-  public_html/portlock/
+Do not upload this file.
 
-MIME: install-apt.sh should be served as text/plain or application/x-sh
-(not forced download). Most LiteSpeed/cPanel hosts do this by default.
-
-After upload, test:
-  curl -fsSL https://gtdataworks.com/portlock/install-apt.sh | head
-  curl -fsSL https://gtdataworks.com/portlock/ | head
+Also replace the site root index.html (Downloads/index.html) so the
+Portlock rail sits above the Gold Trace hero.
