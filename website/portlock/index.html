@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Portlock — GTDataworks</title>
   <meta name="description" content="Workstation USB mass-storage lock. Soft-lock on the lock screen without killing writes. Hard-lock when you leave. Every stick logged. Install via apt." />
-  <meta name="theme-color" content="#11120f" />
+  <meta name="theme-color" content="#020402" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <meta property="og:title" content="Portlock — GTDataworks" />
@@ -14,90 +14,92 @@
   <meta property="og:url" content="https://gtdataworks.com/portlock/" />
   <style>
     :root {
-      --ink: #11120f;
-      --ink-soft: #191a16;
-      --ink-raised: #20211c;
-      --paper: #f2ecdf;
-      --paper-soft: #d9d1c2;
-      --muted: #9e9b90;
-      --gold: #d6ad58;
-      --gold-light: #f0ce7d;
-      --gold-dark: #856629;
-      --green: #8cc19b;
-      --green-bg: #1d3526;
-      --amber: #e3b76c;
-      --line: rgba(242, 236, 223, 0.14);
-      --line-strong: rgba(242, 236, 223, 0.25);
-      --shell: min(1180px, calc(100vw - 40px));
+      --void: #020402;
+      --void-2: #061008;
+      --void-3: #0a1810;
+      --phosphor: #39ff14;
+      --phosphor-dim: #1dbd2a;
+      --phosphor-deep: #0b6b18;
+      --mist: #b7f5b0;
+      --fog: #6d9a68;
+      --line: rgba(57, 255, 20, 0.14);
+      --line-strong: rgba(57, 255, 20, 0.32);
+      --shell: min(1120px, calc(100vw - 40px));
     }
 
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      color: var(--paper);
+      color: var(--mist);
       background:
-        radial-gradient(circle at 85% 5%, rgba(214, 173, 88, 0.07), transparent 28rem),
-        var(--ink);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        radial-gradient(ellipse at 80% 0%, rgba(57, 255, 20, 0.08), transparent 42%),
+        radial-gradient(ellipse at 10% 90%, rgba(14, 80, 24, 0.35), transparent 40%),
+        var(--void);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
       font-size: 16px;
       line-height: 1.6;
-      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      content: "";
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      opacity: 0.07;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='90'><text x='4' y='14' fill='%2339ff14' font-family='monospace' font-size='11'>10110101</text><text x='70' y='32' fill='%2339ff14' font-family='monospace' font-size='11'>01001011</text><text x='18' y='56' fill='%2339ff14' font-family='monospace' font-size='11'>11100010</text><text x='88' y='78' fill='%2339ff14' font-family='monospace' font-size='11'>00110111</text></svg>");
     }
     a { color: inherit; text-decoration: none; }
     button, a { -webkit-tap-highlight-color: transparent; }
     code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
     h1, h2, h3, p { margin-top: 0; }
     h1, h2 {
-      font-family: Georgia, "Times New Roman", serif;
-      font-weight: 400;
-      letter-spacing: -0.035em;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      color: #e8ffe6;
     }
 
     .skip-link {
       position: fixed; z-index: 100; left: 12px; top: 10px;
-      padding: 8px 12px; color: var(--ink); background: var(--gold-light);
-      transform: translateY(-150%); transition: transform 150ms ease;
+      padding: 8px 12px; color: #020402; background: var(--phosphor);
+      transform: translateY(-150%);
     }
     .skip-link:focus { transform: translateY(0); }
-    .shell { width: var(--shell); margin-inline: auto; }
+    .shell { width: var(--shell); margin-inline: auto; position: relative; z-index: 1; }
 
     .site-header {
       position: sticky; z-index: 20; top: 0;
       border-bottom: 1px solid var(--line);
-      background: rgba(17, 18, 15, 0.88);
-      backdrop-filter: blur(18px);
+      background: rgba(2, 4, 2, 0.86);
+      backdrop-filter: blur(16px);
     }
     .header-inner {
-      min-height: 76px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
+      min-height: 72px;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
     }
     .brand { display: inline-flex; align-items: center; gap: 12px; }
     .brand img {
-      width: 36px; height: 36px;
-      display: block; object-fit: contain;
-      border-radius: 7px;
+      width: 40px; height: 40px; display: block; object-fit: cover;
+      border-radius: 6px;
+      box-shadow: 0 0 18px rgba(57, 255, 20, 0.28);
     }
     .brand > span { display: grid; line-height: 1.05; }
-    .brand strong { font-family: Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 500; }
+    .brand strong {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 16px; color: var(--phosphor);
+      text-shadow: 0 0 12px rgba(57, 255, 20, 0.45);
+    }
     .brand small {
-      margin-top: 4px; color: var(--muted);
+      margin-top: 4px; color: var(--fog);
       font-size: 10px; font-weight: 700;
       letter-spacing: 0.2em; text-transform: uppercase;
     }
     .primary-nav {
-      display: flex; align-items: center;
-      gap: clamp(18px, 3vw, 36px);
-      color: var(--paper-soft); font-size: 13px;
+      display: flex; align-items: center; gap: clamp(16px, 3vw, 32px);
+      color: var(--fog); font-size: 13px; font-family: Consolas, monospace;
     }
     .primary-nav a { padding-block: 8px; border-bottom: 1px solid transparent; }
     .primary-nav a:hover,
-    .primary-nav a:focus-visible,
-    .primary-nav a[aria-current="page"] {
-      color: var(--gold-light); border-color: var(--gold); outline: none;
+    .primary-nav a:focus-visible {
+      color: var(--phosphor); border-color: var(--phosphor); outline: none;
     }
 
     .hero {
@@ -105,171 +107,177 @@
       border-bottom: 1px solid var(--line);
       overflow: hidden;
     }
-    .hero::before {
-      position: absolute; inset: 0; content: "";
-      pointer-events: none;
-      background-image:
-        linear-gradient(var(--line) 1px, transparent 1px),
-        linear-gradient(90deg, var(--line) 1px, transparent 1px);
-      background-size: 64px 64px;
-      opacity: 0.18;
-      mask-image: linear-gradient(to right, transparent 2%, black 45%, transparent 100%);
-    }
     .hero-glow {
-      position: absolute; width: 28rem; height: 28rem;
-      top: 6%; right: -6rem; border-radius: 50%;
-      pointer-events: none;
-      background: rgba(214, 173, 88, 0.08);
-      filter: blur(80px);
+      position: absolute; width: 32rem; height: 32rem;
+      top: -4rem; right: -6rem; border-radius: 50%;
+      background: rgba(57, 255, 20, 0.09);
+      filter: blur(70px); pointer-events: none;
     }
     .hero-grid {
-      position: relative;
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.75fr);
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr);
       align-items: center;
-      gap: clamp(40px, 7vw, 100px);
-      padding-block: 80px;
+      gap: clamp(32px, 6vw, 80px);
+      padding-block: 72px;
     }
     .kicker {
-      margin: 0 0 22px;
-      color: var(--gold);
+      margin: 0 0 18px;
+      color: var(--phosphor);
       font-size: 11px; font-weight: 800;
       letter-spacing: 0.22em; text-transform: uppercase;
+      font-family: Consolas, monospace;
     }
     .hero h1 {
-      max-width: 16ch;
-      margin-bottom: 22px;
-      font-size: clamp(42px, 6.4vw, 76px);
-      line-height: 0.94;
+      max-width: 14ch;
+      margin-bottom: 20px;
+      font-size: clamp(38px, 5.8vw, 68px);
+      line-height: 0.96;
+      text-shadow: 0 0 28px rgba(57, 255, 20, 0.18);
     }
     .hero-lede {
-      max-width: 38rem;
-      margin-bottom: 30px;
-      color: var(--paper-soft);
-      font-size: clamp(17px, 1.8vw, 20px);
+      max-width: 36rem; margin-bottom: 28px;
+      color: var(--fog); font-size: clamp(16px, 1.7vw, 19px);
     }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 36px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 32px; }
     .button {
-      min-height: 48px;
+      min-height: 46px;
       display: inline-flex; align-items: center; justify-content: center;
       padding: 10px 18px;
       border: 1px solid var(--line-strong);
-      font-size: 13px; font-weight: 750; letter-spacing: 0.02em;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+      font-family: Consolas, monospace;
       cursor: pointer;
-      transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+      transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
     }
-    .button:hover { transform: translateY(-2px); }
-    .button:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 3px; }
-    .button-primary { color: var(--ink); background: var(--gold); border-color: var(--gold); }
-    .button-primary:hover { background: var(--gold-light); border-color: var(--gold-light); }
-    .button-quiet { color: var(--paper); background: rgba(255,255,255,0.025); }
-    .button-quiet:hover { color: var(--gold-light); border-color: var(--gold-dark); }
+    .button:hover { transform: translateY(-1px); }
+    .button:focus-visible { outline: 2px solid var(--phosphor); outline-offset: 3px; }
+    .button-primary {
+      color: #031003; background: var(--phosphor); border-color: var(--phosphor);
+      box-shadow: 0 0 22px rgba(57, 255, 20, 0.28);
+    }
+    .button-primary:hover { background: #6cff4d; }
+    .button-quiet { color: var(--mist); background: transparent; }
+    .button-quiet:hover { color: var(--phosphor); border-color: var(--phosphor); }
 
     .trust-line {
-      display: flex; flex-wrap: wrap; gap: 14px 28px;
-      margin: 0; padding: 0; color: var(--muted); font-size: 12px; list-style: none;
+      display: flex; flex-wrap: wrap; gap: 12px 24px;
+      margin: 0; padding: 0; color: var(--fog);
+      font-size: 12px; list-style: none; font-family: Consolas, monospace;
     }
     .trust-line li { position: relative; padding-left: 14px; }
     .trust-line li::before {
       content: ""; position: absolute; left: 0; top: 0.55em;
-      width: 5px; height: 5px; border-radius: 50%; background: var(--gold-dark);
+      width: 6px; height: 6px; background: var(--phosphor);
+      box-shadow: 0 0 8px var(--phosphor);
     }
 
+    .lock-col { display: grid; gap: 18px; justify-items: center; }
+    .lock-col img {
+      width: min(100%, 280px);
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(57, 255, 20, 0.22);
+    }
     .claim-panel {
-      background: var(--ink-soft);
+      width: 100%;
+      background: var(--void-2);
       border: 1px solid var(--line-strong);
-      padding: 22px 22px 18px;
+      padding: 18px 18px 14px;
+      box-shadow: inset 0 0 40px rgba(57, 255, 20, 0.04);
     }
     .panel-topline {
       display: flex; justify-content: space-between; gap: 12px;
-      color: var(--muted); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fog); font-size: 11px; letter-spacing: 0.14em;
+      text-transform: uppercase; font-family: Consolas, monospace;
     }
-    .live-dot { color: var(--green); }
+    .live-dot { color: var(--phosphor); }
     .claim-statement {
-      margin: 16px 0 18px;
-      font-family: Georgia, "Times New Roman", serif;
-      font-size: 22px; line-height: 1.25; letter-spacing: -0.02em;
+      margin: 12px 0 14px;
+      font-family: Consolas, monospace;
+      font-size: 16px; line-height: 1.4; color: #e8ffe6;
     }
-    .claim-facts { margin: 0; display: grid; gap: 10px; }
+    .claim-facts { margin: 0; display: grid; gap: 8px; }
     .claim-facts > div {
-      display: grid; grid-template-columns: 9.5rem 1fr;
-      gap: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+      display: grid; grid-template-columns: 8.4rem 1fr;
+      gap: 10px; padding-top: 8px; border-top: 1px solid var(--line);
     }
-    .claim-facts dt { color: var(--muted); font-size: 12px; }
-    .claim-facts dd { margin: 0; font-size: 14px; }
+    .claim-facts dt { color: var(--fog); font-size: 11px; font-family: Consolas, monospace; }
+    .claim-facts dd { margin: 0; font-size: 13.5px; color: var(--mist); }
     .status {
-      display: inline-block; padding: 1px 8px;
-      border: 1px solid var(--line-strong); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      display: inline-block; padding: 0 7px;
+      border: 1px solid var(--line-strong);
+      color: var(--phosphor); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
     }
-    .status-observed { color: var(--green); border-color: rgba(140,193,155,0.4); background: var(--green-bg); }
-    .status-unknown { color: var(--amber); }
 
-    .section { padding-block: 72px; border-bottom: 1px solid var(--line); }
-    .section h2 { margin-bottom: 14px; font-size: clamp(28px, 3.4vw, 40px); }
-    .section-lede { max-width: 40rem; color: var(--paper-soft); margin-bottom: 28px; }
+    .section { padding-block: 68px; border-bottom: 1px solid var(--line); position: relative; z-index: 1; }
+    .section h2 { margin-bottom: 12px; font-size: clamp(26px, 3.2vw, 38px); }
+    .section-lede { max-width: 38rem; color: var(--fog); margin-bottom: 24px; }
 
     .split {
       display: grid;
-      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-      gap: clamp(28px, 5vw, 72px);
+      grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+      gap: clamp(24px, 5vw, 64px);
       align-items: start;
     }
 
-    .flow { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 10px; }
+    .flow { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 8px; }
     .flow li {
       counter-increment: step;
       display: grid; grid-template-columns: 2.2rem 1fr;
-      gap: 12px; padding: 14px 16px;
-      background: var(--ink-raised); border: 1px solid var(--line);
+      gap: 12px; padding: 13px 15px;
+      background: var(--void-3); border: 1px solid var(--line);
     }
     .flow li::before {
       content: counter(step, decimal-leading-zero);
-      color: var(--gold); font-size: 12px; font-weight: 800; letter-spacing: 0.08em; padding-top: 3px;
+      color: var(--phosphor); font-size: 12px; font-weight: 800;
+      font-family: Consolas, monospace; letter-spacing: 0.06em; padding-top: 2px;
     }
 
-    .install-panel { background: var(--ink-soft); border: 1px solid var(--line); padding: 22px; }
+    .install-panel {
+      background: var(--void-2);
+      border: 1px solid var(--line-strong);
+      padding: 20px;
+    }
     .install-label {
       margin: 0 0 8px;
-      color: var(--gold);
+      color: var(--phosphor);
       font-size: 11px; font-weight: 800;
       letter-spacing: 0.16em; text-transform: uppercase;
+      font-family: Consolas, monospace;
     }
     .install-block + .install-block { margin-top: 22px; }
     .cmd-wrap { position: relative; }
     .copy-btn {
       position: absolute; top: 10px; right: 10px;
-      appearance: none; background: var(--ink); color: var(--paper-soft);
-      border: 1px solid var(--line-strong); padding: 5px 9px; font-size: 11px; cursor: pointer;
+      appearance: none; background: var(--void);
+      color: var(--phosphor); border: 1px solid var(--line-strong);
+      padding: 5px 9px; font-size: 11px; cursor: pointer;
+      font-family: Consolas, monospace;
     }
-    .copy-btn.ok { color: var(--green); border-color: var(--green); }
+    .copy-btn.ok { background: var(--phosphor); color: #031003; }
     pre.cmd {
-      margin: 0; padding: 16px 18px 16px 16px;
-      background: #0c0d0b; border: 1px solid var(--line-strong);
-      color: var(--paper); font-size: 13.5px; line-height: 1.55; overflow-x: auto;
+      margin: 0; padding: 16px 18px;
+      background: #010301; border: 1px solid var(--line);
+      color: var(--phosphor); font-size: 13.5px; line-height: 1.55; overflow-x: auto;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.18);
     }
-    pre.cmd .cmt { color: #7a776d; }
-    .footnote { margin: 16px 0 0; color: var(--muted); font-size: 13px; }
-    .footnote a { color: var(--paper-soft); border-bottom: 1px solid var(--line-strong); }
-    .footnote a:hover { color: var(--gold-light); }
+    pre.cmd .cmt { color: var(--phosphor-deep); text-shadow: none; }
+    .footnote { margin: 16px 0 0; color: var(--fog); font-size: 13px; }
+    .footnote a { color: var(--mist); border-bottom: 1px solid var(--line); }
+    .footnote a:hover { color: var(--phosphor); }
 
     .site-footer {
-      padding-block: 36px 48px;
-      color: var(--muted); font-size: 13px;
+      padding-block: 32px 48px;
+      color: var(--fog); font-size: 13px;
+      font-family: Consolas, monospace;
     }
-    .footer-grid {
-      display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px;
-    }
-    .site-footer a { color: var(--paper-soft); }
-    .site-footer a:hover { color: var(--gold-light); }
+    .footer-grid { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+    .site-footer a { color: var(--mist); }
+    .site-footer a:hover { color: var(--phosphor); }
 
     @media (max-width: 860px) {
-      .hero-grid { grid-template-columns: 1fr; padding-block: 56px; }
-      .split { grid-template-columns: 1fr; }
+      .hero-grid, .split { grid-template-columns: 1fr; }
       .hero h1 { max-width: none; }
-    }
-    @media (max-width: 620px) {
-      .header-inner { min-height: 64px; }
-      .primary-nav { gap: 16px; }
+      .lock-col img { max-width: 200px; }
     }
   </style>
 </head>
@@ -278,8 +286,8 @@
   <header class="site-header">
     <div class="shell header-inner">
       <a class="brand" href="https://gtdataworks.com/" aria-label="Gold Trace Dataworks home">
-        <img src="icon.png" width="36" height="36" alt="" />
-        <span><strong>Portlock</strong><small>GTDataworks</small></span>
+        <img src="icon.png" width="40" height="40" alt="" />
+        <span><strong>PORTLOCK</strong><small>GTDataworks</small></span>
       </a>
       <nav class="primary-nav" aria-label="Primary navigation">
         <a href="https://gtdataworks.com/">Dataworks</a>
@@ -310,16 +318,19 @@
             <li>State is visible in the tray</li>
           </ul>
         </div>
-        <aside class="claim-panel" aria-label="Portlock policy claim">
-          <div class="panel-topline"><span>policy / lock</span><span class="live-dot">write-safe</span></div>
-          <p class="claim-statement">A stick already writing is not torn down when the screen locks.</p>
-          <dl class="claim-facts">
-            <div><dt>Soft lock</dt><dd>New sticks blocked. Active sticks stay authorized.</dd></div>
-            <div><dt>Hard lock</dt><dd><span class="status status-observed">Leave-the-house</span> — all mass storage off.</dd></div>
-            <div><dt>Unplug while locked</dt><dd>Cannot re-insert until ports open.</dd></div>
-            <div><dt>Log</dt><dd>VID/PID, serial, product, lock state.</dd></div>
-          </dl>
-        </aside>
+        <div class="lock-col">
+          <img src="icon.png" width="280" height="280" alt="Portlock neon padlock" />
+          <aside class="claim-panel" aria-label="Portlock policy claim">
+            <div class="panel-topline"><span>policy / lock</span><span class="live-dot">write-safe</span></div>
+            <p class="claim-statement">A stick already writing is not torn down when the screen locks.</p>
+            <dl class="claim-facts">
+              <div><dt>Soft lock</dt><dd>New sticks blocked. Active sticks stay authorized.</dd></div>
+              <div><dt>Hard lock</dt><dd><span class="status">Leave-the-house</span> — all mass storage off.</dd></div>
+              <div><dt>Unplug while locked</dt><dd>Cannot re-insert until ports open.</dd></div>
+              <div><dt>Log</dt><dd>VID/PID, serial, product, lock state.</dd></div>
+            </dl>
+          </aside>
+        </div>
       </div>
     </section>
 
