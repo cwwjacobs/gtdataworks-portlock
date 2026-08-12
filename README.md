@@ -4,7 +4,7 @@
 
 > Not affiliated with [USBGuard](https://usbguard.github.io/). Portlock is a small workstation tray tool; USBGuard is a full USB authorization framework. They solve related problems at different layers.
 
-![status](https://img.shields.io/badge/version-0.2.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey)
+![status](https://img.shields.io/badge/version-1.0.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey)
 
 ---
 
@@ -58,8 +58,18 @@ Designed so locking the screen never kills an in-progress copy:
 
 ## Quick install
 
+### `.deb` (recommended — v1 foundational package)
+
 ```bash
-git clone https://github.com/YOUR_USER/gtdataworks-portlock.git
+# From GitHub Releases, or build locally with: make deb
+sudo apt install ./gtdataworks-portlock_1.0.0_all.deb
+portlock   # start tray
+```
+
+### From source
+
+```bash
+git clone https://github.com/cwwjacobs/gtdataworks-portlock.git
 cd gtdataworks-portlock
 ./install.sh
 ```
@@ -67,8 +77,8 @@ cd gtdataworks-portlock
 Requires: Linux with udev, polkit/`pkexec`, Python 3 + Gtk 3 + Ayatana AppIndicator (Linux Mint / Ubuntu / Cinnamon friendly).
 
 ```bash
-# Debian/Ubuntu/Mint deps
-sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 policykit-1
+# Debian/Ubuntu/Mint deps (pulled automatically by the .deb)
+sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1 policykit-1 libnotify-bin
 ```
 
 Fresh install defaults to **hard-locked** until you unlock once from the tray (password prompt). After that, Auto-lock soft-locks without a password.
@@ -130,7 +140,7 @@ Also toggle from the tray menu.
 
 ```bash
 make deb
-# → dist/gtdataworks-portlock_0.2.0_all.deb
+# → dist/gtdataworks-portlock_1.0.0_all.deb
 ```
 
 ---

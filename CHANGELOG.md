@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.0 — 2026-08-12
+
+### Foundational release
+
+First stable public cut of **GTDataworks Portlock**.
+
+- Soft lock / hard lock / unlock state machine
+- Auto-lock on session/screen lock (write-safe soft-lock)
+- Auto-unlock on session unlock (manual hard-lock preserved)
+- Plug-in attempt logging + desktop notifications
+- Official neon matrix padlock icon (locked + unlocked + hicolor)
+- Tray widget (Ayatana AppIndicator) + CLI helpers
+- `install.sh` and shippable **`.deb`** package
+- Polkit: passwordless auto path, authenticated manual path
+
+Not affiliated with USBGuard.
+
 ## 0.2.1 — 2026-08-12
 
 - Official matrix padlock app icon (locked + unlocked tray states)

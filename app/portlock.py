@@ -34,7 +34,7 @@ from gi.repository import GLib, Gtk, Gio
 
 APP_ID = "gtdataworks-portlock"
 APP_NAME = "Portlock"
-VERSION = "0.2.1"
+VERSION = "1.0.0"
 
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "gtdataworks-portlock"
