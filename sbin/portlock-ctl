@@ -6,7 +6,7 @@
 #   hard-locked  — block rule on: ALL mass-storage deauthorized
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.0.1"
 RULE="/etc/udev/rules.d/99-portlock-block-ms.rules"
 RULE_DISABLED="/etc/udev/rules.d/99-portlock-block-ms.rules.disabled"
 # Legacy names from usb-storage-guard / early installs
@@ -81,15 +81,16 @@ reload_udev() {
   udevadm trigger --subsystem-match=usb || true
 }
 
-# List currently authorized mass-storage interface sysfs dirs
+# List mass-storage interface sysfs dirs (class 08), resolved to real device paths.
 list_ms_ifaces() {
-  local auth iface_dir
+  local auth iface_dir class
   shopt -s nullglob
   for auth in /sys/bus/usb/devices/*:*.*/authorized; do
-    iface_dir=$(dirname "$auth")
-    if [[ -f "$iface_dir/bInterfaceClass" ]] && [[ "$(cat "$iface_dir/bInterfaceClass")" == "08" ]]; then
-      echo "$iface_dir"
-    fi
+    iface_dir=$(readlink -f "$(dirname "$auth")") || continue
+    [[ -f "$iface_dir/bInterfaceClass" ]] || continue
+    class=$(tr -d '\n' <"$iface_dir/bInterfaceClass")
+    [[ "$class" == "08" ]] || continue
+    echo "$iface_dir"
   done
 }
 
@@ -109,21 +110,29 @@ deauthorize_all_ms() {
   done < <(list_ms_ifaces)
 }
 
-# Snapshot of authorized MS devices (for soft-lock preserve list / debugging)
+# Snapshot of authorized MS devices (informational only — never an allowlist).
+# Resolve the interface symlink, then take the USB device parent directory.
 snapshot_active_ms() {
-  local iface vid pid serial product
+  local iface real_iface parent vid pid serial product auth class
   mkdir -p "$STATE_DIR"
   : >"${STATE_DIR}/preserved-at-lock.txt"
   while IFS= read -r iface; do
     [[ -z "$iface" ]] && continue
-    auth=$(cat "$iface/authorized" 2>/dev/null || echo 0)
+    real_iface=$(readlink -f "$iface") || continue
+    [[ -d "$real_iface" ]] || continue
+    [[ -f "$real_iface/authorized" ]] || continue
+    [[ -f "$real_iface/bInterfaceClass" ]] || continue
+    class=$(tr -d '\n' <"$real_iface/bInterfaceClass" 2>/dev/null || echo "")
+    [[ "$class" == "08" ]] || continue
+    auth=$(tr -d '\n' <"$real_iface/authorized" 2>/dev/null || echo 0)
     [[ "$auth" != "1" ]] && continue
-    parent=$(dirname "$iface")
+    parent=$(dirname "$real_iface")
+    [[ -f "$parent/idVendor" && -f "$parent/idProduct" ]] || continue
     vid=$(tr -d '\n' <"$parent/idVendor" 2>/dev/null || echo "")
     pid=$(tr -d '\n' <"$parent/idProduct" 2>/dev/null || echo "")
     serial=$(tr -d '\n' <"$parent/serial" 2>/dev/null || echo "")
     product=$(tr -d '\n' <"$parent/product" 2>/dev/null || echo "")
-    echo "iface=$(basename "$iface") vid=${vid} pid=${pid} serial=${serial} product=${product}" \
+    echo "iface=$(basename "$real_iface") vid=${vid} pid=${pid} serial=${serial} product=${product}" \
       >>"${STATE_DIR}/preserved-at-lock.txt"
   done < <(list_ms_ifaces)
   chmod 644 "${STATE_DIR}/preserved-at-lock.txt" 2>/dev/null || true
@@ -180,9 +189,9 @@ soft_lock() {
 hard_lock() {
   local why="${1:-manual}"
   enable_block_rule
-  reload_udev
-  deauthorize_all_ms
   snapshot_active_ms
+  deauthorize_all_ms
+  reload_udev
   write_state "hard-locked" "$why"
   logger -t portlock "HARD-LOCKED (reason=${why}) — all mass storage deauthorized"
   echo "hard-locked"
@@ -200,16 +209,22 @@ unlock() {
 # Auto path helpers (called by tray with explicit reason)
 auto_soft_lock() { soft_lock "auto"; }
 auto_unlock() {
-  # Only clear soft-lock placed by auto mode; leave manual hard-lock alone
+  # Reverse only soft-locked + reason=auto. Every hard-lock is sticky
+  # (manual/install/migrated/other) until an authenticated unlock.
   local s r
   s=$(status)
   r=$(reason)
-  if [[ "$s" == "hard-locked" && "$r" == "manual" ]]; then
-    echo "hard-locked"
-    echo "note: manual hard-lock kept through session unlock" >&2
+  if [[ "$s" == "soft-locked" && "$r" == "auto" ]]; then
+    unlock
     return 0
   fi
-  unlock
+  echo "$s"
+  if [[ "$s" == "hard-locked" ]]; then
+    echo "note: hard-lock (reason=${r}) kept through session unlock" >&2
+  elif [[ "$s" == "soft-locked" ]]; then
+    echo "note: non-auto soft-lock (reason=${r}) kept through session unlock" >&2
+  fi
+  return 0
 }
 
 toggle() {
@@ -259,7 +274,7 @@ usage: portlock-ctl <command>
   lock [reason]        alias for hard-lock
   unlock
   auto-soft-lock       soft-lock with reason=auto (session lock)
-  auto-unlock          unlock unless manual hard-lock is active
+  auto-unlock          unlock only soft-locked+reason=auto; never clear hard-lock
   toggle | authorize-all | deauthorize-all
   attempts-count | log-path | preserved
 EOF

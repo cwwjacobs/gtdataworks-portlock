@@ -17,6 +17,7 @@ mkdir -p "$STAGE/usr/local/bin"
 mkdir -p "$STAGE/usr/local/share/gtdataworks-portlock/icons"
 mkdir -p "$STAGE/usr/share/polkit-1/actions"
 mkdir -p "$STAGE/usr/share/applications"
+mkdir -p "$STAGE/etc/xdg/autostart"
 mkdir -p "$STAGE/etc/udev/rules.d"
 mkdir -p "$STAGE/etc/gtdataworks-portlock"
 mkdir -p "$STAGE/usr/share/doc/${PKG}"
@@ -70,6 +71,22 @@ StartupNotify=false
 Keywords=USB;security;thumb;drive;portlock;mass-storage;
 EOF
 
+# System XDG autostart so the apt-installed tray actually starts
+cat > "$STAGE/etc/xdg/autostart/gtdataworks-portlock.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=GTDataworks Portlock
+GenericName=USB Port Lock
+Comment=Lock USB mass storage, auto soft-lock on lock screen, log plug-in attempts
+Exec=gtdataworks-portlock
+Icon=gtdataworks-portlock
+Terminal=false
+Categories=System;Security;
+StartupNotify=false
+Keywords=USB;security;thumb;drive;portlock;mass-storage;
+X-GNOME-Autostart-enabled=true
+EOF
+
 cat > "$STAGE/DEBIAN/control" <<EOF
 Package: ${PKG}
 Version: ${VERSION}
@@ -95,24 +112,22 @@ mkdir -p /var/lib/gtdataworks-portlock /var/log
 touch /var/log/portlock-attempts.log
 chmod 644 /var/log/portlock-attempts.log
 
-# Fresh install: enable hard-lock. Upgrades: never clobber existing policy.
-if [[ ! -f /etc/udev/rules.d/99-portlock-block-ms.rules \
-   && -f /etc/udev/rules.d/99-portlock-block-ms.rules.disabled ]]; then
-  if [[ ! -f /var/lib/gtdataworks-portlock/state ]]; then
-    mv /etc/udev/rules.d/99-portlock-block-ms.rules.disabled \
-       /etc/udev/rules.d/99-portlock-block-ms.rules
-    echo hard-locked > /var/lib/gtdataworks-portlock/state
-    echo install > /var/lib/gtdataworks-portlock/reason
-  fi
-fi
-
+# Fresh install: enable hard-lock AND deauthorize attached class-08.
+# Upgrades: never clobber existing policy.
 if [[ ! -f /var/lib/gtdataworks-portlock/state ]]; then
-  if [[ -f /etc/udev/rules.d/99-portlock-block-ms.rules ]]; then
-    echo hard-locked > /var/lib/gtdataworks-portlock/state
+  if [[ -x /usr/local/sbin/portlock-ctl ]]; then
+    if [[ -f /etc/udev/rules.d/99-portlock-block-ms.rules ]]; then
+      /usr/local/sbin/portlock-ctl hard-lock migrated
+    elif [[ -f /etc/udev/rules.d/99-portlock-block-ms.rules.disabled ]]; then
+      /usr/local/sbin/portlock-ctl hard-lock install
+    else
+      echo unlocked > /var/lib/gtdataworks-portlock/state
+      echo none > /var/lib/gtdataworks-portlock/reason
+    fi
   else
-    echo unlocked > /var/lib/gtdataworks-portlock/state
+    echo "error: portlock-ctl missing; cannot apply hard-lock" >&2
+    exit 1
   fi
-  echo none > /var/lib/gtdataworks-portlock/reason
 fi
 chmod 644 /var/lib/gtdataworks-portlock/state \
           /var/lib/gtdataworks-portlock/reason 2>/dev/null || true

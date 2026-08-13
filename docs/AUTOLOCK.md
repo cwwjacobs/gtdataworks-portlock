@@ -15,18 +15,23 @@
 | `soft-locked` | present | left as-is (write-safe) |
 | `hard-locked` | present | deauthorized |
 
-`reason` is `auto`, `manual`, `install`, or `none`.
+`reason` is `auto`, `manual`, `install`, `migrated`, or `none`.
 
 ## Transitions
 
 ```
 unlocked  --screen lock + auto_lock-->  soft-locked (reason=auto)
-soft-locked --session unlock + auto_unlock--> unlocked
+soft-locked (reason=auto) --session unlock + auto_unlock--> unlocked
 unlocked  --menu Soft lock--> soft-locked (reason=manual)
 unlocked  --menu Hard lock--> hard-locked (reason=manual)
 *         --menu Unlock--> unlocked
-hard-locked (manual) --session unlock--> hard-locked (kept)
+hard-locked (any reason) --session unlock--> hard-locked (kept)
+soft-locked (reason≠auto) --session unlock--> soft-locked (kept)
 ```
+
+`auto_unlock` may reverse **only** `state=soft-locked` with `reason=auto`.
+Every hard-lock (manual, install, migrated, or other) is sticky until an
+authenticated/manual unlock.
 
 ## Why soft-lock does not deauthorize
 

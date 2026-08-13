@@ -40,6 +40,7 @@ jobs:
       - name: Build apt repository
         env:
           GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          PORTLOCK_APT_FINGERPRINT: ${{ secrets.PORTLOCK_APT_FINGERPRINT }}
         run: |
           ./packaging/build-apt-repo.sh
           # User-facing installer at site root

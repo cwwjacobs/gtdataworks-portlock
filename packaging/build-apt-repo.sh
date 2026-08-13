@@ -2,7 +2,8 @@
 # Build a static apt repository from dist/*.deb
 # Output: packaging/apt-repo/  (dists/ + pool/)
 #
-# Optional signing: set GPG_PRIVATE_KEY (armored) or GPG_KEY_ID if key is in keyring.
+# Signing is mandatory: set GPG_PRIVATE_KEY (armored) or GPG_KEY_ID.
+# InRelease must be produced. Unsigned output is not shipped.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,6 +15,65 @@ ARCH="all"
 ORIGIN="GTDataworks"
 LABEL="Portlock"
 VERSION="$(tr -d ' \n' <"$ROOT/VERSION")"
+SIGNING_CONF="$ROOT/packaging/apt-signing.conf"
+PLACEHOLDER_FPR="REPLACE_WITH_REPO_SIGNING_FINGERPRINT"
+
+normalize_fpr() {
+  local f="${1:-}"
+  f="${f// /}"
+  f="${f//$'\t'/}"
+  printf '%s' "${f^^}"
+}
+
+is_pinned_fingerprint() {
+  local f
+  f="$(normalize_fpr "$1")"
+  [[ "$f" =~ ^[0-9A-F]{40}$ ]]
+}
+
+read_pinned_fingerprint() {
+  local line raw val
+  if [[ -n "${PORTLOCK_APT_FINGERPRINT:-}" ]]; then
+    printf '%s' "$(normalize_fpr "$PORTLOCK_APT_FINGERPRINT")"
+    return 0
+  fi
+  if [[ -f "$SIGNING_CONF" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%$'\r'}"
+      [[ "$line" =~ ^[[:space:]]*# ]] && continue
+      [[ "$line" =~ ^[[:space:]]*PORTLOCK_APT_FINGERPRINT= ]] || continue
+      raw="${line#*=}"
+      val="${raw%%#*}"
+      val="${val//[[:space:]]/}"
+      val="${val//\"/}"
+      val="${val//\'/}"
+      printf '%s' "$(normalize_fpr "$val")"
+      return 0
+    done < "$SIGNING_CONF"
+  fi
+  printf '%s' "$PLACEHOLDER_FPR"
+}
+
+EXPECTED_FINGERPRINT="$(read_pinned_fingerprint)"
+
+if ! is_pinned_fingerprint "$EXPECTED_FINGERPRINT"; then
+  echo "error: no authoritative apt signing fingerprint is pinned." >&2
+  echo "       Release cannot proceed until the operator sets" >&2
+  echo "       PORTLOCK_APT_FINGERPRINT (or packaging/apt-signing.conf)" >&2
+  echo "       to the real 40-hex-digit fingerprint of the repo signing key." >&2
+  echo "       Do not invent a fingerprint." >&2
+  exit 1
+fi
+
+if ! command -v gpg >/dev/null 2>&1; then
+  echo "error: gpg is required to sign the apt repository" >&2
+  exit 1
+fi
+
+if [[ -z "${GPG_PRIVATE_KEY:-}" && -z "${GPG_KEY_ID:-}" ]]; then
+  echo "error: GPG_PRIVATE_KEY or GPG_KEY_ID is required; unsigned repos are not allowed" >&2
+  exit 1
+fi
 
 if ! ls "$DIST_DEB"/gtdataworks-portlock_*.deb >/dev/null 2>&1; then
   echo "error: no debs in $DIST_DEB — run make deb first" >&2
@@ -57,17 +117,15 @@ apt-ftparchive \
   -o "APT::FTPArchive::Release::Description=GTDataworks Portlock apt repository" \
   release "dists/${CODENAME}" > "dists/${CODENAME}/Release"
 
-SIGNED=0
 sign_release() {
   local keyring_args=()
+  local kid
   if [[ -n "${GPG_PRIVATE_KEY:-}" ]]; then
     local gnupghome
     gnupghome="$(mktemp -d)"
     export GNUPGHOME="$gnupghome"
     chmod 700 "$gnupghome"
     echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-    # use first secret key
-    local kid
     kid=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
     gpg --batch --yes --pinentry-mode loopback \
       --default-key "$kid" \
@@ -76,22 +134,35 @@ sign_release() {
       --default-key "$kid" \
       --clearsign -o "dists/${CODENAME}/InRelease" "dists/${CODENAME}/Release"
     gpg --armor --export "$kid" > "$OUT/KEY.gpg"
-    SIGNED=1
-    # cleanup temp home only if we created it
     rm -rf "$gnupghome"
     unset GNUPGHOME
   elif [[ -n "${GPG_KEY_ID:-}" ]]; then
+    kid="$GPG_KEY_ID"
     gpg --batch --yes -abs -o "dists/${CODENAME}/Release.gpg" "dists/${CODENAME}/Release"
     gpg --batch --yes --clearsign -o "dists/${CODENAME}/InRelease" "dists/${CODENAME}/Release"
     gpg --armor --export "$GPG_KEY_ID" > "$OUT/KEY.gpg"
-    SIGNED=1
   fi
 }
 
-sign_release || {
-  echo "warning: signing failed; shipping unsigned repo (use trusted=yes)" >&2
-  SIGNED=0
-}
+sign_release
+
+if [[ ! -f "$OUT/dists/${CODENAME}/InRelease" || ! -s "$OUT/dists/${CODENAME}/InRelease" ]]; then
+  echo "error: InRelease was not produced; refusing to ship an unsigned repo" >&2
+  exit 1
+fi
+if [[ ! -f "$OUT/KEY.gpg" || ! -s "$OUT/KEY.gpg" ]]; then
+  echo "error: KEY.gpg was not produced" >&2
+  exit 1
+fi
+
+ACTUAL_FPR="$(gpg --batch --with-colons --show-keys "$OUT/KEY.gpg" 2>/dev/null \
+  | awk -F: '/^fpr:/ {print $10; exit}')"
+ACTUAL_FPR="$(normalize_fpr "$ACTUAL_FPR")"
+if [[ "$ACTUAL_FPR" != "$EXPECTED_FINGERPRINT" ]]; then
+  echo "error: signing key fingerprint $ACTUAL_FPR does not match pin $EXPECTED_FINGERPRINT" >&2
+  echo "       the installer will reject this KEY.gpg; refusing to ship" >&2
+  exit 1
+fi
 
 # Landing page for GitHub Pages root (when OUT is published at site root under /apt or full root)
 cat > "$OUT/index.html" <<EOF
@@ -117,7 +188,7 @@ cat > "$OUT/index.html" <<EOF
   </style>
 </head>
 <body>
-  <p class="badge">v${VERSION} · foundational</p>
+  <p class="badge">v${VERSION} · signed apt</p>
   <h1>Portlock apt repository</h1>
   <p>Workstation USB mass-storage lock — soft-lock on screen lock, hard-lock when you leave, attempt logging. Official matrix padlock build.</p>
   <h2>Install</h2>
@@ -127,11 +198,11 @@ sudo apt install gtdataworks-portlock
 portlock</pre>
   <p class="muted">Or pin a release <code>.deb</code> from
     <a href="https://github.com/cwwjacobs/gtdataworks-portlock/releases">GitHub Releases</a>.</p>
-  <p class="muted">Repo layout: <code>dists/</code> + <code>pool/</code> · suite <code>${CODENAME}</code> · signed: ${SIGNED}</p>
+  <p class="muted">Repo layout: <code>dists/</code> + <code>pool/</code> · suite <code>${CODENAME}</code> · signed: required</p>
 </body>
 </html>
 EOF
 
-echo "apt repo built at $OUT (signed=$SIGNED)"
+echo "apt repo built at $OUT (signed=1 fingerprint=${EXPECTED_FINGERPRINT})"
 echo "packages:"
 grep -E '^Package:|^Version:|^Filename:' "dists/${CODENAME}/${COMPONENT}/binary-${ARCH}/Packages" || true

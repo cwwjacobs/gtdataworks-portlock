@@ -26,7 +26,11 @@ check:
 	bash -n packaging/build-deb.sh
 	bash -n packaging/build-apt-repo.sh
 	bash -n packaging/install-apt.sh
+	bash -n website/portlock/install-apt.sh
+	bash -n tests/run.sh
 	python3 -m py_compile app/portlock.py
+	python3 tests/test_session.py
+	bash tests/run.sh
 	@echo "check ok"
 
 deb:

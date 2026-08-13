@@ -38,17 +38,23 @@ sudo apt update
 4. Tag + GitHub Release (attach `.deb`).
 5. Push/publish `gh-pages` with repo contents (CI does this on release).
 
-### Optional GPG signing
+### Mandatory GPG signing
+
+Signed `InRelease` metadata is required. There is no `trusted=yes` fallback.
 
 ```bash
-# Generate a CI signing key (no passphrase), export, store as secret:
-#   gh secret set APT_GPG_PRIVATE_KEY < private.asc
-export GPG_PRIVATE_KEY="$(cat private.asc)"
+# packaging/apt-signing.conf pins the real 40-hex fingerprint of the
+# Portlock APT signing key. CI secrets:
+#   APT_GPG_PRIVATE_KEY          (armored private key)
+#   PORTLOCK_APT_FINGERPRINT     (same 40-hex pin as apt-signing.conf)
+#
+# Local rebuild (private key never in the repo):
+export GPG_PRIVATE_KEY="$(cat ~/.config/gtdataworks/keys/portlock-apt-private.asc)"
+export PORTLOCK_APT_FINGERPRINT="$(tr -d ' \n' < ~/.config/gtdataworks/keys/portlock-apt-fingerprint.txt)"
 ./packaging/build-apt-repo.sh
 # Publishes KEY.gpg + InRelease + Release.gpg
+# Fails closed if the fingerprint is unset/invalid or InRelease is missing.
 ```
-
-Without a key, `install-apt.sh` uses `trusted=yes` (fine for early product; add signing when you want stricter trust).
 
 ### Layout
 
@@ -58,5 +64,5 @@ dists/stable/Release
 pool/main/g/gtdataworks-portlock/*.deb
 install-apt.sh
 index.html
-KEY.gpg          # if signed
+KEY.gpg          # required (signed repo)
 ```

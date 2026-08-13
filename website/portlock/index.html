@@ -302,7 +302,7 @@
       <div class="hero-glow" aria-hidden="true"></div>
       <div class="shell hero-grid">
         <div>
-          <p class="kicker">Workstation product · v1.0.0</p>
+          <p class="kicker">Workstation product · v1.0.1</p>
           <h1>USB mass storage stays explicit.</h1>
           <p class="hero-lede">
             Soft-lock on the lock screen without killing in-flight writes.
@@ -345,7 +345,7 @@
           <li>Unlock, then plug the stick you actually need.</li>
           <li>Lock screen → soft-lock. Active sticks keep writing. New ones are blocked and logged.</li>
           <li>Unplug while locked and the port stays closed to that stick.</li>
-          <li>Unlock the session → ports open. A manual hard-lock stays until you clear it.</li>
+          <li>Unlock the session → ports open if they were auto soft-locked. A hard-lock stays until you clear it.</li>
         </ol>
       </div>
     </section>
@@ -388,8 +388,8 @@ portlock</pre>
           </div>
           <p class="footnote">
             One-shot package:
-            <a href="https://github.com/cwwjacobs/gtdataworks-portlock/releases/download/v1.0.0/gtdataworks-portlock_1.0.0_all.deb">gtdataworks-portlock_1.0.0_all.deb</a>
-            · then <code>sudo apt install ./gtdataworks-portlock_1.0.0_all.deb</code>
+            <a href="https://github.com/cwwjacobs/gtdataworks-portlock/releases/download/v1.0.1/gtdataworks-portlock_1.0.1_all.deb">gtdataworks-portlock_1.0.1_all.deb</a>
+            · then <code>sudo apt install ./gtdataworks-portlock_1.0.1_all.deb</code>
             · upgrade with <code>sudo apt update &amp;&amp; sudo apt install --only-upgrade gtdataworks-portlock</code>
           </p>
         </div>

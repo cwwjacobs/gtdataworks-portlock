@@ -6,7 +6,7 @@ Soft-lock on the lock screen (without killing in-flight writes). Hard-lock when 
 
 > First real product from GTDataworks. Not affiliated with [USBGuard](https://usbguard.github.io/) — complementary desktop UX for class-08 mass storage.
 
-![status](https://img.shields.io/badge/version-1.0.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey) ![release](https://img.shields.io/github/v/release/cwwjacobs/gtdataworks-portlock)
+![status](https://img.shields.io/badge/version-1.0.1-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![platform](https://img.shields.io/badge/platform-Linux-lightgrey) ![release](https://img.shields.io/github/v/release/cwwjacobs/gtdataworks-portlock)
 
 ---
 
@@ -42,7 +42,7 @@ Repo site: [cwwjacobs.github.io/gtdataworks-portlock](https://cwwjacobs.github.i
 | **Soft lock** | Blocks *new* USB mass-storage devices. Sticks already plugged in **stay active** so writes are not interrupted. |
 | **Hard lock** | Blocks everything now — deauthorizes active sticks too. “I’m leaving the house.” |
 | **Auto-lock** | On lock screen / session lock → **soft-lock** (passwordless). |
-| **Auto-unlock** | On session unlock → ports open again (optional; default on). Manual hard-lock is kept until you unlock. |
+| **Auto-unlock** | On session unlock → ports open only if they were auto soft-locked (optional; default on). Any hard-lock is kept until you unlock. |
 | **Attempt log** | Every mass-storage plug is logged (VID/PID, serial, product) + desktop notification. |
 | **Tray widget** | Red / green icon, one-click actions (Cinnamon, MATE, others with AppIndicator). |
 
@@ -60,7 +60,7 @@ Designed so locking the screen never kills an in-progress copy:
    - Any **new** stick is **blocked** and **logged**.
 3. If you **unplug** while locked, you **cannot re-insert** until ports open again.
 4. **Unlock the session** → ports auto-open for new sticks (toggleable).
-5. **Hard lock** from the tray = block all mass storage immediately; survives session unlock until you manually unlock ports.
+5. **Hard lock** from the tray = block all mass storage immediately; any hard-lock survives session unlock until you manually unlock ports.
 
 ```
          unlock session
@@ -89,7 +89,7 @@ Designed so locking the screen never kills an in-progress copy:
 
 ```bash
 # https://github.com/cwwjacobs/gtdataworks-portlock/releases
-sudo apt install ./gtdataworks-portlock_1.0.0_all.deb
+sudo apt install ./gtdataworks-portlock_1.0.1_all.deb
 portlock
 ```
 
@@ -141,8 +141,8 @@ Also toggle from the tray menu.
 
 | Path | What |
 |------|------|
-| `~/.local/share/gtdataworks-portlock/attempts.log` | User-readable attempt log |
-| `/var/log/portlock-attempts.log` | System copy |
+| `/var/log/portlock-attempts.log` | Authoritative attempt log (root-controlled) |
+| `~/.local/share/gtdataworks-portlock/attempts.log` | Optional personal copy |
 | `/var/lib/gtdataworks-portlock/state` | `unlocked` / `soft-locked` / `hard-locked` |
 
 ---
@@ -154,7 +154,7 @@ Also toggle from the tray menu.
 - **Hard lock** installs the rule **and** writes `0` to every mass-storage interface’s `authorized`.
 - **Auto path** uses `portlock-ctl-auto` + polkit action `com.gtdataworks.portlock.auto` with `allow_active=yes` so screen-lock does not prompt for a password.
 - Manual lock/unlock uses `portlock-ctl` + polkit `auth_admin_keep`.
-- Tray watches Cinnamon/GNOME/MATE screensaver `ActiveChanged` and logind `Lock`/`Unlock`.
+- Tray watches Cinnamon/GNOME/MATE screensaver `ActiveChanged` and this login session’s logind `Lock`/`Unlock`, with periodic lock-state reconciliation.
 
 ---
 
@@ -162,7 +162,7 @@ Also toggle from the tray menu.
 
 ```bash
 make deb
-# → dist/gtdataworks-portlock_1.0.0_all.deb
+# → dist/gtdataworks-portlock_1.0.1_all.deb
 ```
 
 ---

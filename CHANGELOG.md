@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.1 — 2026-08-12
+
+### Hardening release
+
+Security and trust-root fixes on the foundational product cut:
+
+- **Root-to-user symlink boundary removal** — install no longer creates or chowns paths under `$HOME` as root; remaining user artifacts run as the installing user (`runuser`/`sudo -u`)
+- **Sticky hard-lock auto-unlock semantics** — session unlock may reverse only `soft-locked` + `reason=auto`; every hard-lock (manual, install, migrated) stays until authenticated unlock
+- **Per-session logind scoping/reconciliation** — tray watches this login session’s logind `Lock`/`Unlock` only, with periodic `LockedHint` reconciliation
+- **Mandatory signed APT trust** — install and repo build require a pinned 40-hex fingerprint and signed `InRelease`; `signed-by` only, no `trusted=yes`
+- **apt autostart** — system `/etc/xdg/autostart` desktop entry so apt installs start the tray
+- **Truthful install hard-lock deauthorization** — fresh install/postinst calls `portlock-ctl hard-lock` so attached class-08 interfaces are actually deauthorized
+- **sysfs snapshot fix** — mass-storage interface listing resolves real device paths; snapshot is informational only, never an unlock allowlist
+
 ## 1.0.0 — 2026-08-12
 
 ### Foundational release — first real product cut

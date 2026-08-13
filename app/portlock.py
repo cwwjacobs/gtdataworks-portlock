@@ -4,9 +4,9 @@ GTDataworks Portlock — tray widget for USB mass-storage lock + attempt log.
 
 Auto-lock mode (default on):
   • Session/screen locks  → soft-lock: NEW sticks blocked; already-plugged stay live
-  • Session/screen unlocks → unlock ports (unless you hard-locked manually)
+  • Session/screen unlocks → unlock ports only if state=soft-locked reason=auto
   • Unplug while locked    → cannot re-insert until ports unlock
-  • Manual hard-lock       → kills active sticks too (leave-the-house mode)
+  • Hard-lock              → kills active sticks; sticky until authenticated unlock
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from gi.repository import GLib, Gtk, Gio
 
 APP_ID = "gtdataworks-portlock"
 APP_NAME = "Portlock"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 HOME = Path.home()
 CONFIG_DIR = HOME / ".config" / "gtdataworks-portlock"
@@ -58,6 +58,31 @@ DEFAULT_CONFIG = {
     "auto_unlock_on_session_unlock": True,
     "notify_on_auto": True,
 }
+
+
+def may_auto_unlock(state: str, reason: str) -> bool:
+    """Auto-unlock may reverse only soft-locked state placed by auto mode."""
+    return state == "soft-locked" and reason == "auto"
+
+
+def logind_session_object_path(session_id: str | None) -> str | None:
+    """Encode a logind session id as a login1 object path.
+
+    systemd prefixes '_' when the id does not start with [A-Za-z_].
+    Runtime resolution prefers Manager.GetSession; this is the fallback.
+    """
+    sid = (session_id or "").strip()
+    if not sid or len(sid) > 64:
+        return None
+    if any(c in sid for c in "/.\\"):
+        return None
+    if not all(c.isalnum() or c in "-_" for c in sid):
+        return None
+    if sid[0].isalpha() or sid[0] == "_":
+        encoded = sid
+    else:
+        encoded = f"_{sid}"
+    return f"/org/freedesktop/login1/session/{encoded}"
 
 
 def load_config() -> dict:
@@ -122,13 +147,14 @@ def privileged(action: str, *extra: str, auto: bool = False) -> tuple[bool, str]
 
 
 def attempt_log_path() -> Path:
+    # System log is authoritative (root-controlled). User log is optional.
+    if SYSTEM_LOG.is_file() and os.access(SYSTEM_LOG, os.R_OK):
+        return SYSTEM_LOG
     if USER_LOG.is_file():
         return USER_LOG
     if LEGACY_LOG.is_file():
         return LEGACY_LOG
-    if SYSTEM_LOG.is_file():
-        return SYSTEM_LOG
-    return USER_LOG
+    return SYSTEM_LOG
 
 
 def read_attempts(limit: int | None = None) -> list[str]:
@@ -272,12 +298,21 @@ class AttemptWindow(Gtk.Window):
             buttons=Gtk.ButtonsType.OK_CANCEL,
             text="Clear the user attempt log?",
         )
-        dlg.format_secondary_text(
-            f"Clears {USER_LOG}. System log at {SYSTEM_LOG} is left alone."
-        )
+        if attempt_log_path() == SYSTEM_LOG:
+            dlg.format_secondary_text(
+                f"The visible log is the system file {SYSTEM_LOG}, which this "
+                "user session cannot clear. Only a personal copy at "
+                f"{USER_LOG} would be emptied."
+            )
+        else:
+            dlg.format_secondary_text(
+                f"Clears {USER_LOG}. System log at {SYSTEM_LOG} is left alone."
+            )
         resp = dlg.run()
         dlg.destroy()
         if resp != Gtk.ResponseType.OK:
+            return
+        if attempt_log_path() == SYSTEM_LOG:
             return
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         USER_LOG.write_text("")
@@ -297,6 +332,9 @@ class PortlockApp:
         self.cfg = load_config()
         self.state = get_state()
         self.session_locked = False
+        self._session_path = None
+        self._bus = None
+        self._sys_bus = None
         self.last_log_count = count_attempts()
         self.last_notify_mtime = self._notify_mtime()
         self.attempt_win: AttemptWindow | None = None
@@ -497,9 +535,10 @@ class PortlockApp:
             "   • Already-plugged sticks stay active (writes finish safely).\n"
             "   • Any NEW stick is blocked and logged.\n"
             "3. If you unplug while locked, you cannot re-insert until unlock.\n"
-            "4. Unlocking the session auto-unlocks ports (optional toggle).\n\n"
+            "4. Unlocking the session auto-unlocks ports only if they were\n"
+            "   soft-locked by Auto-lock (optional toggle).\n\n"
             "Hard lock (menu) blocks everything immediately — use when leaving\n"
-            "the machine unattended. Manual hard-lock survives session unlock\n"
+            "the machine unattended. Any hard-lock survives session unlock\n"
             "until you Unlock ports yourself.\n\n"
             "Not affiliated with the USBGuard project."
         )
@@ -509,11 +548,12 @@ class PortlockApp:
     # --- session lock watchers ---------------------------------------------
 
     def _setup_session_watchers(self):
-        """Listen for Cinnamon/GNOME screensaver + logind Lock/Unlock."""
+        """Listen for this login session's lock state (logind + DE screensaver)."""
         self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
         self._sys_bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        self._session_path = None
 
-        # Screensaver ActiveChanged on common buses
+        # Screensaver ActiveChanged from the well-known name owner only.
         for name in (
             "org.cinnamon.ScreenSaver",
             "org.gnome.ScreenSaver",
@@ -522,7 +562,7 @@ class PortlockApp:
         ):
             try:
                 self._bus.signal_subscribe(
-                    None,
+                    name,
                     name,
                     "ActiveChanged",
                     None,
@@ -534,11 +574,101 @@ class PortlockApp:
             except Exception:
                 pass
 
-        # Initial screensaver state (best effort)
+        sid = os.environ.get("XDG_SESSION_ID", "").strip()
+        if sid:
+            self._session_path = self._resolve_logind_session_path(sid)
+        if self._session_path:
+            try:
+                self._sys_bus.signal_subscribe(
+                    "org.freedesktop.login1",
+                    "org.freedesktop.login1.Session",
+                    "Lock",
+                    self._session_path,
+                    None,
+                    Gio.DBusSignalFlags.NONE,
+                    self._on_logind_lock,
+                    True,
+                )
+                self._sys_bus.signal_subscribe(
+                    "org.freedesktop.login1",
+                    "org.freedesktop.login1.Session",
+                    "Unlock",
+                    self._session_path,
+                    None,
+                    Gio.DBusSignalFlags.NONE,
+                    self._on_logind_lock,
+                    False,
+                )
+            except Exception:
+                pass
+
+        locked = self._query_authoritative_locked()
+        if locked is True:
+            self.session_locked = True
+
+        if self.session_locked and self.cfg.get("auto_lock"):
+            GLib.idle_add(self._apply_auto_soft_lock)
+
+    def _resolve_logind_session_path(self, session_id: str) -> str | None:
+        """Resolve XDG_SESSION_ID to THIS session's login1 object path."""
+        try:
+            proxy = Gio.DBusProxy.new_sync(
+                self._sys_bus,
+                Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
+                None,
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1",
+                "org.freedesktop.login1.Manager",
+                None,
+            )
+            result = proxy.call_sync(
+                "GetSession",
+                GLib.Variant("(s)", (session_id,)),
+                Gio.DBusCallFlags.NONE,
+                2000,
+                None,
+            )
+            path = result.unpack()[0]
+            if isinstance(path, str) and path.startswith(
+                "/org/freedesktop/login1/session/"
+            ):
+                return path
+        except Exception:
+            pass
+        return logind_session_object_path(session_id)
+
+    def _query_logind_locked(self) -> bool | None:
+        if not getattr(self, "_session_path", None):
+            return None
+        try:
+            proxy = Gio.DBusProxy.new_sync(
+                self._sys_bus,
+                Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
+                None,
+                "org.freedesktop.login1",
+                self._session_path,
+                "org.freedesktop.DBus.Properties",
+                None,
+            )
+            result = proxy.call_sync(
+                "Get",
+                GLib.Variant(
+                    "(ss)", ("org.freedesktop.login1.Session", "LockedHint")
+                ),
+                Gio.DBusCallFlags.NONE,
+                1000,
+                None,
+            )
+            return bool(result.unpack()[0])
+        except Exception:
+            return None
+
+    def _query_screensaver_active(self) -> bool | None:
         for name, path in (
             ("org.cinnamon.ScreenSaver", "/org/cinnamon/ScreenSaver"),
             ("org.gnome.ScreenSaver", "/org/gnome/ScreenSaver"),
             ("org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver"),
+            ("org.mate.ScreenSaver", "/org/mate/ScreenSaver"),
         ):
             try:
                 proxy = Gio.DBusProxy.new_sync(
@@ -553,52 +683,43 @@ class PortlockApp:
                 active = proxy.call_sync(
                     "GetActive", None, Gio.DBusCallFlags.NONE, 1000, None
                 )
-                if active and active.get_child_value(0).get_boolean():
-                    self.session_locked = True
-                break
+                if active is not None:
+                    return bool(active.get_child_value(0).get_boolean())
             except Exception:
                 continue
+        return None
 
-        # logind session Lock / Unlock
-        try:
-            self._sys_bus.signal_subscribe(
-                "org.freedesktop.login1",
-                "org.freedesktop.login1.Session",
-                "Lock",
-                None,
-                None,
-                Gio.DBusSignalFlags.NONE,
-                self._on_logind_lock,
-                True,
-            )
-            self._sys_bus.signal_subscribe(
-                "org.freedesktop.login1",
-                "org.freedesktop.login1.Session",
-                "Unlock",
-                None,
-                None,
-                Gio.DBusSignalFlags.NONE,
-                self._on_logind_lock,
-                False,
-            )
-        except Exception:
-            pass
+    def _query_authoritative_locked(self) -> bool | None:
+        # Prefer logind LockedHint for this session; screensaver GetActive next.
+        hinted = self._query_logind_locked()
+        if hinted is not None:
+            return hinted
+        return self._query_screensaver_active()
 
-        if self.session_locked and self.cfg.get("auto_lock"):
-            GLib.idle_add(self._apply_auto_soft_lock)
+    def _reconcile_session_lock(self) -> None:
+        locked = self._query_authoritative_locked()
+        if locked is None:
+            return
+        self._handle_session_lock_change(locked)
 
     def _on_screensaver_signal(
         self, _conn, _sender, _path, _iface, _signal, params, _user
     ):
         try:
-            active = bool(params.unpack()[0])
+            hinted = bool(params.unpack()[0])
         except Exception:
             return
-        GLib.idle_add(self._handle_session_lock_change, active)
+        confirmed = self._query_authoritative_locked()
+        GLib.idle_add(
+            self._handle_session_lock_change,
+            hinted if confirmed is None else confirmed,
+        )
 
     def _on_logind_lock(
-        self, _conn, _sender, _path, _iface, _signal, _params, locked
+        self, _conn, _sender, path, _iface, _signal, _params, locked
     ):
+        if self._session_path and path != self._session_path:
+            return
         GLib.idle_add(self._handle_session_lock_change, bool(locked))
 
     def _handle_session_lock_change(self, locked: bool):
@@ -636,11 +757,11 @@ class PortlockApp:
         reason = get_reason()
         if state == "unlocked":
             return
-        if state == "hard-locked" and reason == "manual":
-            if self.cfg.get("notify_on_auto", True):
+        if not may_auto_unlock(state, reason):
+            if state == "hard-locked" and self.cfg.get("notify_on_auto", True):
                 self.notify(
                     APP_NAME,
-                    "Session unlocked, but manual hard-lock is still on.",
+                    "Session unlocked, but hard-lock is still on.",
                 )
             return
         self._auto_busy = True
@@ -670,6 +791,7 @@ class PortlockApp:
         return False
 
     def on_poll(self) -> bool:
+        self._reconcile_session_lock()
         new_state = get_state()
         new_count = count_attempts()
         new_mtime = self._notify_mtime()
@@ -680,21 +802,24 @@ class PortlockApp:
             if self.attempt_win is not None and self.attempt_win.get_visible():
                 self.attempt_win.reload()
 
-        if new_mtime > self.last_notify_mtime and new_count > self.last_log_count:
-            lines = read_attempts(limit=1)
-            if lines:
-                p = parse_line(lines[-1])
-                if p["state"] in ("soft-locked", "hard-locked", "locked"):
-                    self.notify(
-                        "Portlock: blocked",
-                        f"{p['product']} ({p['vidpid']})",
-                        critical=True,
-                    )
-                else:
-                    self.notify(
-                        "Portlock: stick detected",
-                        f"{p['product']} ({p['vidpid']})",
-                    )
+        # Authoritative signal is a new system-log line. notify.flag is optional
+        # leftover state and is no longer written by the root helper.
+        if new_count > self.last_log_count or new_mtime > self.last_notify_mtime:
+            if new_count > self.last_log_count:
+                lines = read_attempts(limit=1)
+                if lines:
+                    p = parse_line(lines[-1])
+                    if p["state"] in ("soft-locked", "hard-locked", "locked"):
+                        self.notify(
+                            "Portlock: blocked",
+                            f"{p['product']} ({p['vidpid']})",
+                            critical=True,
+                        )
+                    else:
+                        self.notify(
+                            "Portlock: stick detected",
+                            f"{p['product']} ({p['vidpid']})",
+                        )
 
         self.last_log_count = new_count
         self.last_notify_mtime = new_mtime

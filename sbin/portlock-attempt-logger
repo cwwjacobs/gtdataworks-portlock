@@ -1,5 +1,8 @@
 #!/bin/bash
 # udev helper: log USB mass-storage attach events for gtdataworks-portlock.
+#
+# Root writes only to root-controlled paths (/var/log, /run). This helper
+# must never mkdir/write/truncate/chown/chmod anything under a user home.
 set -u
 
 LOG="/var/log/portlock-attempts.log"
@@ -9,12 +12,44 @@ LEGACY_RULE="/etc/udev/rules.d/99-block-usb-mass-storage.rules"
 LOCK_FILE="/run/portlock-attempt-logger.lock"
 CONFIG="/etc/gtdataworks-portlock/notify-user.conf"
 
-# Optional: NOTIFY_USER=alice  (written by install.sh)
+# Optional: NOTIFY_USER=alice  (written by install.sh). Parsed, never sourced.
 NOTIFY_USER=""
-if [[ -f "$CONFIG" ]]; then
-  # shellcheck disable=SC1090
-  source "$CONFIG" || true
+
+parse_notify_user() {
+  local cfg="${1:-}"
+  local line raw val
+  NOTIFY_USER=""
+  [[ -n "$cfg" && -f "$cfg" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" =~ ^[[:space:]]*NOTIFY_USER= ]] || continue
+    raw="${line#*=}"
+    val="$raw"
+    if [[ "$val" == \"*\" ]]; then
+      val="${val#\"}"
+      val="${val%%\"*}"
+    elif [[ "$val" == \'*\' ]]; then
+      val="${val#\'}"
+      val="${val%%\'*}"
+    else
+      val="${val%%#*}"
+      val="${val//[[:space:]]/}"
+    fi
+    if [[ "$val" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]; then
+      NOTIFY_USER="$val"
+      return 0
+    fi
+  done < "$cfg"
+  return 0
+}
+
+if [[ "${PORTLOCK_LOGGER_LIB_ONLY:-0}" == 1 ]]; then
+  return 0 2>/dev/null || exit 0
 fi
+
+parse_notify_user "$CONFIG"
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || exit 0
@@ -69,10 +104,9 @@ umask 022
 echo "$LINE" >>"$LOG"
 chmod 644 "$LOG" 2>/dev/null || true
 
-# Mirror into every logged-in GUI user's attempt log + notify flag
-mirror_to_users() {
-  local user home uid runtime bus
-  # Prefer configured user; also try active seat users
+# Session notification only (notify-send). No writes under $HOME.
+notify_users() {
+  local user uid runtime bus title body
   local users=()
   if [[ -n "$NOTIFY_USER" ]]; then
     users+=("$NOTIFY_USER")
@@ -86,22 +120,13 @@ mirror_to_users() {
   for user in "${users[@]}"; do
     [[ "$seen" == *"|$user|"* ]] && continue
     seen+="${user}|"
-    home=$(getent passwd "$user" | cut -d: -f6)
-    [[ -n "$home" && -d "$home" ]] || continue
-    local dir="$home/.local/share/gtdataworks-portlock"
-    mkdir -p "$dir"
-    echo "$LINE" >>"$dir/attempts.log"
-    echo "$TS" >"$dir/notify.flag"
-    chown -R "$user:$user" "$dir" 2>/dev/null || true
-    chmod 755 "$dir" 2>/dev/null || true
-    chmod 644 "$dir/attempts.log" "$dir/notify.flag" 2>/dev/null || true
+    [[ "$user" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] || continue
 
     uid=$(id -u "$user" 2>/dev/null) || continue
     runtime="/run/user/${uid}"
     bus="unix:path=${runtime}/bus"
     [[ -S "${runtime}/bus" ]] || continue
 
-    local title body
     case "$LOCK_STATE" in
       soft-locked|hard-locked|locked)
         title="Portlock: USB storage blocked"
@@ -125,5 +150,5 @@ mirror_to_users() {
 }
 
 logger -t portlock-attempt "mass-storage ${LOCK_STATE}: ${MANUF} ${PRODUCT} (${VID}:${PID}) serial=${SERIAL}"
-mirror_to_users
+notify_users
 exit 0
