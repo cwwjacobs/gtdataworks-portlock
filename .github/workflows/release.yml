@@ -56,17 +56,15 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: false
 
-      - name: Configure Pages
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_pages || startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
-        uses: actions/upload-pages-artifact@v3
+      # Site source is the gh-pages branch (legacy GitHub Pages).
+      # Publish the signed static apt repo there so KEY.gpg + InRelease ship.
+      - name: Publish apt repo to gh-pages
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_pages) || startsWith(github.ref, 'refs/tags/') }}
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: packaging/apt-repo
-
-      - name: Deploy to GitHub Pages
-        if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') }}
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: packaging/apt-repo
+          publish_branch: gh-pages
+          force_orphan: true
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
