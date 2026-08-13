@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTDataworks Portlock — apt repo</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 42rem;
+           margin: 3rem auto; padding: 0 1.25rem; background: #0a0a0a; color: #d4f5d4;
+           line-height: 1.55; }
+    h1 { color: #39ff14; font-weight: 700; letter-spacing: -0.02em; }
+    a { color: #7dff9a; }
+    code, pre { background: #141414; border-radius: 8px; }
+    code { padding: 0.15em 0.4em; }
+    pre { padding: 1rem 1.1rem; overflow-x: auto; border: 1px solid #1f3d1f; }
+    .muted { color: #8a9a8a; font-size: 0.95rem; }
+    .badge { display: inline-block; border: 1px solid #39ff14; color: #39ff14;
+             padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <p class="badge">v1.0.1 · signed apt</p>
+  <h1>Portlock apt repository</h1>
+  <p>Workstation USB mass-storage lock — soft-lock on screen lock, hard-lock when you leave, attempt logging. Official matrix padlock build.</p>
+  <h2>Install</h2>
+  <pre>curl -fsSL https://cwwjacobs.github.io/gtdataworks-portlock/install-apt.sh | sudo bash
+sudo apt update
+sudo apt install gtdataworks-portlock
+portlock</pre>
+  <p class="muted">Or pin a release <code>.deb</code> from
+    <a href="https://github.com/cwwjacobs/gtdataworks-portlock/releases">GitHub Releases</a>.</p>
+  <p class="muted">Repo layout: <code>dists/</code> + <code>pool/</code> · suite <code>stable</code> · signed: required</p>
+</body>
+</html>

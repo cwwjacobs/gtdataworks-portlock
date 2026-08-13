@@ -1,0 +1,42 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+Architectures: all
+Codename: stable
+Components: main
+Date: Thu, 13 Aug 2026 02:24:06 +0000
+Description: GTDataworks Portlock apt repository
+Label: Portlock
+Origin: GTDataworks
+Suite: stable
+MD5Sum:
+ baea547e8feba3b814a8919622d8d090              190 Release
+ 349ecdfec8fa472a563ce9fd3231caf1             1127 main/binary-all/Packages
+ 0e16478f59e364f30ceed5e07752fb15              719 main/binary-all/Packages.gz
+ f496990d1ab643d456b4e19a90a113ea              808 main/binary-all/Packages.xz
+ bc54b44b00f72da6c29582b352bd2235               86 main/binary-all/Release
+SHA1:
+ 1947aa1cc57450047f1f934dbcee26807c1c5029              190 Release
+ db77349bcfee7333630ddc2db3d062cdeeb1c01b             1127 main/binary-all/Packages
+ 7c169d15741898ea032b11dd85724c6d53e0d3b5              719 main/binary-all/Packages.gz
+ a3b97e08814dfde3ba712eb7c0c3d77acf57b571              808 main/binary-all/Packages.xz
+ a62a1dc786696303da4dc89ea93f0ef02450be10               86 main/binary-all/Release
+SHA256:
+ 29d5031738720f29d83d5e3caba6911a36332f04d9359d5c5ed6f92c7ad3f807              190 Release
+ 97f78294ebdeda1701f96e96ae578590be97fe45609060d47d156759fe125ea6             1127 main/binary-all/Packages
+ 972589155bb16b34dd4704ffbdaa816bb03823352753596f09e05ca3ee21facb              719 main/binary-all/Packages.gz
+ 90b942235a89f46fdfa1b4742a8c14adbdaddbfd393dca009bb0294ed708a3ae              808 main/binary-all/Packages.xz
+ 05c9b045d8162fe86bf632bef81a2e446bcb415f3d8a96f3ffce55d3c344b411               86 main/binary-all/Release
+SHA512:
+ ab0df1777dcc0e6d996bf8be5a1c7cecd57cdf4ed9f5fb11d3fc047babcbc8c8f9ced039c6c3e4b0ec422846933ae380bb24faf4339372a98250638091026d8e              190 Release
+ da6b2acf110467cf12fc2a0f44b1418a1402b303f894346612cf93b5fd5de450f505b439433439defd27fc6652ba072f2cafcbf3e19cbca669cc9f732383d314             1127 main/binary-all/Packages
+ 5bca33e54c0b4944d66142d12797c4a32240d817bdee2253b05081919e8f8368c1d1dda1681153fd052afb05d53964fe7da95701e6b9bf615cae382f6e1853e7              719 main/binary-all/Packages.gz
+ 8158c249aa66fb4f1f4ecdde252a02b321bf6bdd2a1f41064080d3a61403f40f25a1f902b3cb7c0bfbecb56672fbdeafc9d1136e48dad3217045a292e4057d38              808 main/binary-all/Packages.xz
+ 87fcec35f8319bf599d994e1f51f97457d6938b3767e777564361d229edcd471cd80a99be52237ffbcff0cb42833deec1ca0a9199769ff219a1c689cc90f81f4               86 main/binary-all/Release
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQS9dE74Dz8zL8WuOpIPiVt1G6EuIgUCan0qxgAKCRAPiVt1G6Eu
+IikWAQCoIhYdmKLd6UF76uxs+xrEn6ocXmyzx4oOSgsGY4B+NwD/VufqOtGBEZMM
+odMs4FM0aLq7rjQvckpssKPflA0yNgs=
+=NymT
+-----END PGP SIGNATURE-----
